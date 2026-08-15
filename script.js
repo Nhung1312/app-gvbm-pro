@@ -102,7 +102,7 @@ function initData() {
     if (!saved) {
         return {
             settings: {
-                teacherName: "Thầy Hoàng Nam",
+                teacherName: "Thầy / Cô",
                 subject: "Toán học",
                 year: "2025-2026",
                 semester: "HK1",
@@ -172,7 +172,6 @@ window.closeModal = function(id) { document.getElementById(id).style.display = '
 
 // ================= TỰ ĐỘNG TÍNH TOÁN & NHẬN XÉT =================
 window.calculateDTB = function(txArr, gk, ck) {
-    // Hỗ trợ môn đánh giá bằng chữ (Đ, CĐ, v.v.)
     let allGrades = [...txArr, gk, ck];
     if (allGrades.some(g => typeof g === 'string' && (g.toUpperCase() === 'Đ' || g.toUpperCase() === 'CĐ'))) {
         if (ck) return ck;
@@ -200,7 +199,6 @@ window.calculateDTB = function(txArr, gk, ck) {
 window.getAutoComment = function(dtb) {
     if (dtb === "" || dtb === null) return "";
     
-    // Nếu là môn đánh giá chữ
     if (typeof dtb === 'string') {
         let d = dtb.toUpperCase();
         if (d === 'Đ' || d === 'ĐẠT') return "Đạt yêu cầu môn học.";
@@ -236,7 +234,7 @@ window.renderClassSelector = function() {
     }
     classList.forEach(c => {
         let opt = document.createElement('option');
-        opt.value = c; opt.innerText = c; // Hiển thị nguyên cả "TOÁN HỌC - 6A"
+        opt.value = c; opt.innerText = c; 
         if(c === appData.settings.currentClass) opt.selected = true;
         select.appendChild(opt);
     });
@@ -252,16 +250,20 @@ window.refreshAllViews = function() {
     const s = appData.settings;
     const currentList = appData.classes[s.currentClass] || [];
 
-    // Trích xuất tên Môn và Lớp từ Key (Ví dụ "TOÁN HỌC - 6A")
     let keyParts = s.currentClass.split(' - ');
     let displaySubject = keyParts.length > 1 ? keyParts[0] : s.subject;
     let displayClass = keyParts.length > 1 ? keyParts[1] : s.currentClass;
 
-    // Cập nhật Header & Drawer Info
     document.getElementById('dash-teacher-name').innerText = s.teacherName;
     document.getElementById('drawer-teacher-name').innerText = s.teacherName;
     document.getElementById('drawer-subject-name').innerText = `${displaySubject} • Lớp ${displayClass}`;
-    document.getElementById('drawer-avatar').innerText = s.teacherName.split(' ').pop().substring(0,2).toUpperCase();
+    
+    let parts = s.teacherName.trim().split(' ');
+    let avatarText = "GV";
+    if (parts.length > 0 && parts[parts.length-1]) {
+        avatarText = parts[parts.length-1].substring(0,2).toUpperCase();
+    }
+    document.getElementById('drawer-avatar').innerText = avatarText;
 
     // 1. Dashboard Metrics
     const totalStudents = currentList.length;
@@ -325,7 +327,6 @@ window.refreshAllViews = function() {
         });
     }
 
-    // Cập nhật text ở Thống Kê
     if(document.getElementById('stat-view-classname')) document.getElementById('stat-view-classname').innerText = displayClass;
     if(document.getElementById('stat-view-subject')) document.getElementById('stat-view-subject').innerText = displaySubject;
     if(document.getElementById('stat-view-year')) document.getElementById('stat-view-year').innerText = s.year;
@@ -365,7 +366,6 @@ window.renderStudentsView = function() {
     filtered.forEach((st, idx) => {
         let initials = st.name.split(' ').map(n=>n[0]).slice(-2).join('').toUpperCase();
         
-        // Xét logic huy hiệu màu cho điểm bằng Số hoặc bằng Chữ (Đ/CĐ)
         let evalBadge = 'good';
         if (typeof st.dtb === 'string') {
             let d = st.dtb.toUpperCase();
@@ -565,7 +565,6 @@ window.handleEduImportFile = function(event) {
                 const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                 if(rows.length < 7) return;
 
-                // Tự trích xuất tên Lớp 
                 let targetClass = "CHUNG";
                 let classRowStr = (rows[3] || []).join(' ');
                 let classMatch = classRowStr.match(/Lớp\s*([0-9]+[A-Za-z0-9]*)/i);
@@ -576,7 +575,6 @@ window.handleEduImportFile = function(event) {
                     targetClass = parts[parts.length - 1].toUpperCase();
                 }
 
-                // Tự trích xuất tên Môn
                 let targetSubject = appData.settings.subject.toUpperCase();
                 let subjectRowStr = (rows[2] || []).join(' ');
                 let subjectMatch = subjectRowStr.match(/MÔN\s+([^-]+)\s+-/i);
@@ -584,7 +582,6 @@ window.handleEduImportFile = function(event) {
                     targetSubject = subjectMatch[1].trim().toUpperCase();
                 }
 
-                // TẠO CHÌA KHÓA DUY NHẤT LƯU TRỮ VÍ DỤ: "TOÁN HỌC - 6A"
                 let listKey = `${targetSubject} - ${targetClass}`;
 
                 if (!appData.classes[listKey]) appData.classes[listKey] = [];
@@ -634,7 +631,6 @@ window.handleEduImportFile = function(event) {
 
             window.renderClassSelector();
             
-            // Nếu lớp đang chọn không có trong list thì chuyển sang lớp đầu tiên vừa import
             if (!appData.classes[appData.settings.currentClass]) {
                  appData.settings.currentClass = Object.keys(appData.classes)[0];
                  document.getElementById('global-class-select').value = appData.settings.currentClass;
@@ -696,7 +692,7 @@ window.exportEduFile = function() {
     window.showToast("✅ Đã xuất File EDU thành công!");
 };
 
-// ================= TRONG TIẾT (RANDOM PICKER & GHI NHẬN LỖI) =================
+// ================= TRONG TIẾT =================
 let lastPickedStudent = null;
 window.pickRandomStudent = function() {
     const currentList = appData.classes[appData.settings.currentClass] || [];
@@ -766,7 +762,7 @@ window.quickAddPlusPoint = function(id) {
     }
 };
 
-// ================= CÀI ĐẶT MẪU NHẬN XÉT THEO ĐIỂM =================
+// ================= CÀI ĐẶT & BẢO TRÌ DỮ LIỆU =================
 window.renderCommentRulesSettings = function() {
     const container = document.getElementById('comment-rules-container');
     if(!container) return;
@@ -864,6 +860,13 @@ window.backupAppDataJSON = function() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     window.showToast("Đã tải bản sao lưu dữ liệu!");
+};
+
+window.resetData = function() {
+    if(confirm("XÓA SẠCH DỮ LIỆU CÁC LỚP TRÊN MÁY NÀY? Thao tác này giúp bạn dọn dẹp bộ nhớ để nhập file EDU mới từ đầu.")) {
+        localStorage.removeItem('gvbmData_v1');
+        location.reload();
+    }
 };
 
 window.onload = () => {
