@@ -106,17 +106,11 @@ function initData() {
                 subject: "Toán học",
                 year: "2025-2026",
                 semester: "HK1",
-                currentClass: "6A",
+                currentClass: "TOÁN HỌC - 6A",
                 txColumns: 4,
                 commentRules: defaultCommentRules
             },
-            classes: {
-                "6A": [
-                    { id: 1, maHs: "2510589762", hoDem: "Đoàn Trần Quốc", ten: "An", name: "Đoàn Trần Quốc An", dob: "27/10/2014", gender: "Nam", tx: [8, 9, 9, 9], gk: 9.5, ck: 9.0, dtb: 9.0, comment: "Nắm vững kiến thức, tiếp tục phát huy.", callCount: 2, violationCount: 0 },
-                    { id: 2, maHs: "2510587702", hoDem: "Lê Bảo", ten: "An", name: "Lê Bảo An", dob: "05/08/2014", gender: "Nam", tx: [8, 9, 8, 8.5], gk: 9.0, ck: 9.5, dtb: 8.9, comment: "Nắm khá vững kiến thức, cần phát huy.", callCount: 1, violationCount: 0 },
-                    { id: 3, maHs: "2510589622", hoDem: "Võ Tuấn", ten: "Kiệt", name: "Võ Tuấn Kiệt", dob: "12/04/2014", gender: "Nam", tx: [5, 6, 5.5, 6], gk: 5.5, ck: 5.5, dtb: 5.6, comment: "Đạt yêu cầu, cần củng cố kiến thức.", callCount: 3, violationCount: 3 }
-                ]
-            }
+            classes: {}
         };
     }
     return saved;
@@ -178,6 +172,15 @@ window.closeModal = function(id) { document.getElementById(id).style.display = '
 
 // ================= TỰ ĐỘNG TÍNH TOÁN & NHẬN XÉT =================
 window.calculateDTB = function(txArr, gk, ck) {
+    // Hỗ trợ môn đánh giá bằng chữ (Đ, CĐ, v.v.)
+    let allGrades = [...txArr, gk, ck];
+    if (allGrades.some(g => typeof g === 'string' && (g.toUpperCase() === 'Đ' || g.toUpperCase() === 'CĐ'))) {
+        if (ck) return ck;
+        if (gk) return gk;
+        let lastTx = [...txArr].reverse().find(g => g);
+        return lastTx || "";
+    }
+
     let validTx = txArr.filter(x => x !== "" && x !== null && !isNaN(Number(x))).map(Number);
     let numGk = (gk !== "" && gk !== null && !isNaN(Number(gk))) ? Number(gk) : null;
     let numCk = (ck !== "" && ck !== null && !isNaN(Number(ck))) ? Number(ck) : null;
@@ -195,8 +198,18 @@ window.calculateDTB = function(txArr, gk, ck) {
 };
 
 window.getAutoComment = function(dtb) {
-    if (dtb === "" || dtb === null || isNaN(Number(dtb))) return "";
+    if (dtb === "" || dtb === null) return "";
+    
+    // Nếu là môn đánh giá chữ
+    if (typeof dtb === 'string') {
+        let d = dtb.toUpperCase();
+        if (d === 'Đ' || d === 'ĐẠT') return "Đạt yêu cầu môn học.";
+        if (d === 'CĐ' || d === 'CHƯA ĐẠT') return "Chưa đạt yêu cầu, cần cố gắng thêm.";
+    }
+
     let val = Number(dtb);
+    if (isNaN(val)) return "";
+    
     let rules = appData.settings.commentRules || defaultCommentRules;
     for (let r of rules) {
         if (val >= r.min && val <= r.max) return r.text;
@@ -215,15 +228,15 @@ window.renderClassSelector = function() {
     select.innerHTML = '';
     const classList = Object.keys(appData.classes);
     if(classList.length === 0) {
-        appData.classes["6A"] = [];
-        classList.push("6A");
+        appData.classes["TOÁN HỌC - 6A"] = [];
+        classList.push("TOÁN HỌC - 6A");
     }
     if(!appData.classes[appData.settings.currentClass]) {
         appData.settings.currentClass = classList[0];
     }
     classList.forEach(c => {
         let opt = document.createElement('option');
-        opt.value = c; opt.innerText = `Lớp ${c}`;
+        opt.value = c; opt.innerText = c; // Hiển thị nguyên cả "TOÁN HỌC - 6A"
         if(c === appData.settings.currentClass) opt.selected = true;
         select.appendChild(opt);
     });
@@ -232,37 +245,42 @@ window.renderClassSelector = function() {
 window.changeCurrentClass = function(newClass) {
     appData.settings.currentClass = newClass;
     window.saveData();
-    window.showToast(`Đã chuyển sang lớp ${newClass}`);
+    window.showToast(`Đã chuyển sang ${newClass}`);
 };
 
 window.refreshAllViews = function() {
     const s = appData.settings;
     const currentList = appData.classes[s.currentClass] || [];
 
+    // Trích xuất tên Môn và Lớp từ Key (Ví dụ "TOÁN HỌC - 6A")
+    let keyParts = s.currentClass.split(' - ');
+    let displaySubject = keyParts.length > 1 ? keyParts[0] : s.subject;
+    let displayClass = keyParts.length > 1 ? keyParts[1] : s.currentClass;
+
     // Cập nhật Header & Drawer Info
     document.getElementById('dash-teacher-name').innerText = s.teacherName;
     document.getElementById('drawer-teacher-name').innerText = s.teacherName;
-    document.getElementById('drawer-subject-name').innerText = `${s.subject} • Lớp ${s.currentClass}`;
+    document.getElementById('drawer-subject-name').innerText = `${displaySubject} • Lớp ${displayClass}`;
     document.getElementById('drawer-avatar').innerText = s.teacherName.split(' ').pop().substring(0,2).toUpperCase();
 
     // 1. Dashboard Metrics
     const totalStudents = currentList.length;
     document.getElementById('stat-class-size').innerText = totalStudents;
 
-    let validScores = currentList.map(s => Number(s.dtb)).filter(v => !isNaN(v) && v > 0);
+    let validScores = currentList.map(st => Number(st.dtb)).filter(v => !isNaN(v) && v > 0);
     let avgScore = validScores.length > 0 ? (validScores.reduce((a,b)=>a+b, 0) / validScores.length).toFixed(1) : "0.0";
     document.getElementById('stat-class-avg').innerText = avgScore;
 
-    let goodCount = validScores.filter(s => s >= 8.0).length;
+    let goodCount = validScores.filter(sc => sc >= 8.0).length;
     let goodRate = totalStudents > 0 ? Math.round((goodCount / totalStudents) * 100) : 0;
     document.getElementById('stat-good-rate').innerText = `${goodRate}%`;
     document.getElementById('stat-tx-count').innerText = `${s.txColumns || 4} cột`;
 
     // Phân bố kết quả
-    let cXuatSac = validScores.filter(s => s >= 9.0).length;
-    let cTot = validScores.filter(s => s >= 8.0 && s < 9.0).length;
-    let cKha = validScores.filter(s => s >= 6.5 && s < 8.0).length;
-    let cCanCoGang = validScores.filter(s => s < 6.5).length;
+    let cXuatSac = validScores.filter(sc => sc >= 9.0).length;
+    let cTot = validScores.filter(sc => sc >= 8.0 && sc < 9.0).length;
+    let cKha = validScores.filter(sc => sc >= 6.5 && sc < 8.0).length;
+    let cCanCoGang = validScores.filter(sc => sc < 6.5).length;
 
     document.getElementById('count-xuat-sac').innerText = cXuatSac;
     document.getElementById('count-tot').innerText = cTot;
@@ -276,16 +294,22 @@ window.refreshAllViews = function() {
         document.getElementById('bar-can-co-gang').style.width = `${(cCanCoGang/totalStudents)*100}%`;
     }
 
-    // Danh sách cần chú ý (Điểm < 6.5 hoặc có vi phạm)
+    // Danh sách cần chú ý
     const attList = document.getElementById('attention-student-list');
     attList.innerHTML = '';
-    let attentionStudents = currentList.filter(st => (Number(st.dtb) > 0 && Number(st.dtb) < 6.5) || (st.violationCount > 0));
+    let attentionStudents = currentList.filter(st => {
+        let isLowScore = (Number(st.dtb) > 0 && Number(st.dtb) < 6.5);
+        let isCD = (typeof st.dtb === 'string' && st.dtb.toUpperCase() === 'CĐ');
+        return isLowScore || isCD || (st.violationCount > 0);
+    });
+    
     if (attentionStudents.length === 0) {
         attList.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 15px;">Lớp đang học tập rất tốt! 🎉</div>`;
     } else {
         attentionStudents.slice(0, 5).forEach(st => {
             let initials = st.name.split(' ').map(n=>n[0]).slice(-2).join('').toUpperCase();
-            let scoreClass = Number(st.dtb) < 5.0 ? 'danger' : 'warn';
+            let isDanger = (Number(st.dtb) > 0 && Number(st.dtb) < 5.0) || (typeof st.dtb === 'string' && st.dtb.toUpperCase() === 'CĐ');
+            let scoreClass = isDanger ? 'danger' : 'warn';
             attList.innerHTML += `
                 <div class="attention-item" onclick="openStudentProfile(${st.id})">
                     <div class="att-left">
@@ -301,16 +325,22 @@ window.refreshAllViews = function() {
         });
     }
 
-    // 2. Render Màn hình Học Sinh
+    // Cập nhật text ở Thống Kê
+    if(document.getElementById('stat-view-classname')) document.getElementById('stat-view-classname').innerText = displayClass;
+    if(document.getElementById('stat-view-subject')) document.getElementById('stat-view-subject').innerText = displaySubject;
+    if(document.getElementById('stat-view-year')) document.getElementById('stat-view-year').innerText = s.year;
+    if(document.getElementById('stat-total-stu')) document.getElementById('stat-total-stu').innerText = totalStudents;
+    if(document.getElementById('stat-avg-all')) document.getElementById('stat-avg-all').innerText = avgScore;
+    
+    let maxS = validScores.length > 0 ? Math.max(...validScores) : 0;
+    let minS = validScores.length > 0 ? Math.min(...validScores) : 0;
+    if(document.getElementById('stat-max-score')) document.getElementById('stat-max-score').innerText = maxS;
+    if(document.getElementById('stat-min-score')) document.getElementById('stat-min-score').innerText = minS;
+
     window.renderStudentsView();
-
-    // 3. Render Màn hình Sổ Điểm
     window.renderGradebookTable();
-
-    // 4. Render Màn hình Trong Tiết
     window.renderInClassView();
 
-    // 5. Cài đặt
     document.getElementById('set-teacher-name').value = s.teacherName || '';
     document.getElementById('set-subject-name').value = s.subject || '';
     document.getElementById('set-school-year').value = s.year || '';
@@ -334,8 +364,18 @@ window.renderStudentsView = function() {
 
     filtered.forEach((st, idx) => {
         let initials = st.name.split(' ').map(n=>n[0]).slice(-2).join('').toUpperCase();
-        let dtb = Number(st.dtb) || 0;
-        let evalBadge = dtb >= 8 ? 'good' : (dtb >= 5 ? 'warn' : 'danger');
+        
+        // Xét logic huy hiệu màu cho điểm bằng Số hoặc bằng Chữ (Đ/CĐ)
+        let evalBadge = 'good';
+        if (typeof st.dtb === 'string') {
+            let d = st.dtb.toUpperCase();
+            if (d === 'CĐ' || d === 'CHƯA ĐẠT') evalBadge = 'danger';
+            else if (d !== 'Đ' && d !== 'ĐẠT' && isNaN(Number(d))) evalBadge = 'warn'; 
+        } else {
+            let dtb = Number(st.dtb) || 0;
+            evalBadge = dtb >= 8 ? 'good' : (dtb >= 5 ? 'warn' : 'danger');
+        }
+        if (st.dtb === "" || st.dtb === null) evalBadge = 'warn'; 
 
         listEl.innerHTML += `
             <div class="stat-card-modern" style="cursor: pointer;" onclick="openStudentProfile(${st.id})">
@@ -359,10 +399,13 @@ window.openStudentProfile = function(id) {
     if (!st) return;
 
     const stt = currentList.findIndex(x => x.id === id) + 1;
+    let keyParts = appData.settings.currentClass.split(' - ');
+    let displayClass = keyParts.length > 1 ? keyParts[1] : appData.settings.currentClass;
+
     document.getElementById('prof-student-id').value = st.id;
     document.getElementById('prof-header-name').innerText = st.name;
     document.getElementById('prof-name').value = st.name;
-    document.getElementById('prof-header-class').innerText = appData.settings.currentClass;
+    document.getElementById('prof-header-class').innerText = displayClass;
     document.getElementById('prof-header-stt').innerText = stt;
     document.getElementById('prof-header-dtb').innerText = st.dtb || '--';
     document.getElementById('prof-avatar').innerText = st.name.split(' ').map(n=>n[0]).slice(-2).join('').toUpperCase();
@@ -370,7 +413,6 @@ window.openStudentProfile = function(id) {
     document.getElementById('prof-calls').innerText = st.callCount || 0;
     document.getElementById('prof-violations').innerText = st.violationCount || 0;
 
-    // Render các cột TX
     const txContainer = document.getElementById('prof-tx-container');
     txContainer.innerHTML = '';
     const numCols = appData.settings.txColumns || 4;
@@ -379,7 +421,7 @@ window.openStudentProfile = function(id) {
         txContainer.innerHTML += `
             <div class="tx-box">
                 <span>TX${i+1}</span>
-                <input type="number" class="prof-tx-input" data-idx="${i}" value="${val}" step="0.1" min="0" max="10" oninput="recalcProfileScores()">
+                <input type="text" class="prof-tx-input" data-idx="${i}" value="${val}" oninput="recalcProfileScores()">
             </div>
         `;
     }
@@ -409,7 +451,6 @@ window.recalcProfileScores = function() {
     document.getElementById('prof-dtb').value = dtb;
     document.getElementById('prof-header-dtb').innerText = dtb || '--';
 
-    // Tự động gợi ý nhận xét nếu ô nhận xét đang trống hoặc thay đổi điểm
     let autoComment = window.getAutoComment(dtb);
     if(autoComment) {
         document.getElementById('prof-comment').value = autoComment;
@@ -426,9 +467,9 @@ window.saveStudentProfile = function() {
     st.violationCount = parseInt(document.getElementById('prof-violations').innerText) || 0;
 
     let txInputs = document.querySelectorAll('.prof-tx-input');
-    st.tx = Array.from(txInputs).map(inp => inp.value !== "" ? Number(inp.value) : "");
-    st.gk = document.getElementById('prof-gk').value !== "" ? Number(document.getElementById('prof-gk').value) : "";
-    st.ck = document.getElementById('prof-ck').value !== "" ? Number(document.getElementById('prof-ck').value) : "";
+    st.tx = Array.from(txInputs).map(inp => inp.value !== "" ? (isNaN(Number(inp.value)) ? inp.value : Number(inp.value)) : "");
+    st.gk = document.getElementById('prof-gk').value !== "" ? (isNaN(Number(document.getElementById('prof-gk').value)) ? document.getElementById('prof-gk').value : Number(document.getElementById('prof-gk').value)) : "";
+    st.ck = document.getElementById('prof-ck').value !== "" ? (isNaN(Number(document.getElementById('prof-ck').value)) ? document.getElementById('prof-ck').value : Number(document.getElementById('prof-ck').value)) : "";
     st.dtb = document.getElementById('prof-dtb').value;
     st.comment = document.getElementById('prof-comment').value.trim();
 
@@ -489,7 +530,6 @@ window.quickUpdateScore = function(studentId, field, txIdx, value) {
         st.comment = value.trim();
     }
 
-    // Tự động tính lại ĐTB và Nhận xét nếu là môn tính điểm
     st.dtb = window.calculateDTB(st.tx || [], st.gk, st.ck);
     if (field !== 'comment') {
         st.comment = window.getAutoComment(st.dtb);
@@ -525,8 +565,8 @@ window.handleEduImportFile = function(event) {
                 const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                 if(rows.length < 7) return;
 
-                // Tự trích xuất tên Lớp từ dòng 3: "Khối 6 - Lớp 6A" -> "6A"
-                let targetClass = appData.settings.currentClass;
+                // Tự trích xuất tên Lớp 
+                let targetClass = "CHUNG";
                 let classRowStr = (rows[3] || []).join(' ');
                 let classMatch = classRowStr.match(/Lớp\s*([0-9]+[A-Za-z0-9]*)/i);
                 if (classMatch && classMatch[1]) {
@@ -536,10 +576,20 @@ window.handleEduImportFile = function(event) {
                     targetClass = parts[parts.length - 1].toUpperCase();
                 }
 
-                if (!appData.classes[targetClass]) appData.classes[targetClass] = [];
-                let classList = appData.classes[targetClass];
+                // Tự trích xuất tên Môn
+                let targetSubject = appData.settings.subject.toUpperCase();
+                let subjectRowStr = (rows[2] || []).join(' ');
+                let subjectMatch = subjectRowStr.match(/MÔN\s+([^-]+)\s+-/i);
+                if (subjectMatch && subjectMatch[1]) {
+                    targetSubject = subjectMatch[1].trim().toUpperCase();
+                }
 
-                // Quét học sinh từ hàng 7 trở đi
+                // TẠO CHÌA KHÓA DUY NHẤT LƯU TRỮ VÍ DỤ: "TOÁN HỌC - 6A"
+                let listKey = `${targetSubject} - ${targetClass}`;
+
+                if (!appData.classes[listKey]) appData.classes[listKey] = [];
+                let classList = appData.classes[listKey];
+
                 for (let r = 7; r < rows.length; r++) {
                     let row = rows[r];
                     let stt = row[0];
@@ -554,7 +604,6 @@ window.handleEduImportFile = function(event) {
                     let tx1 = row[5], tx2 = row[6], tx3 = row[7], tx4 = row[8];
                     let gk = row[9], ck = row[10], dtb = row[11], comment = String(row[12]).trim();
 
-                    // Đối chiếu theo Mã học sinh
                     let existing = classList.find(x => x.maHs === maHs || (maHs && x.maHs == maHs));
                     if (existing) {
                         existing.hoDem = hoDem; existing.ten = ten; existing.name = fullName; existing.dob = dob;
@@ -584,6 +633,13 @@ window.handleEduImportFile = function(event) {
             });
 
             window.renderClassSelector();
+            
+            // Nếu lớp đang chọn không có trong list thì chuyển sang lớp đầu tiên vừa import
+            if (!appData.classes[appData.settings.currentClass]) {
+                 appData.settings.currentClass = Object.keys(appData.classes)[0];
+                 document.getElementById('global-class-select').value = appData.settings.currentClass;
+            }
+
             window.saveData();
             window.showToast(`🎉 Đồng bộ EDU thành công ${totalImportedCount} học sinh!`);
         } catch (error) {
@@ -600,13 +656,17 @@ window.exportEduFile = function() {
     const currentList = appData.classes[s.currentClass] || [];
     if(currentList.length === 0) return window.showToast("Lớp chưa có dữ liệu!", "error");
 
+    let keyParts = s.currentClass.split(' - ');
+    let expSubject = keyParts.length > 1 ? keyParts[0] : s.subject.toUpperCase();
+    let expClass = keyParts.length > 1 ? keyParts[1] : s.currentClass;
+
     let ws_data = [
         ["ỦY BAN NHÂN DÂN PHƯỜNG TĨNH GIA"],
         ["TRƯỜNG TH & THCS LƯƠNG CHÍ"],
-        [`BẢNG ĐIỂM CHI TIẾT - MÔN ${s.subject.toUpperCase()} - ${s.semester.toUpperCase()} - NĂM HỌC ${s.year}`],
-        [`Khối ${s.currentClass.replace(/[^0-9]/g, '')} - Lớp ${s.currentClass}`],
+        [`BẢNG ĐIỂM CHI TIẾT - MÔN ${expSubject} - ${s.semester.toUpperCase()} - NĂM HỌC ${s.year}`],
+        [`Khối ${expClass.replace(/[^0-9]/g, '')} - Lớp ${expClass}`],
         [],
-        ["STT", "Mã học sinh", "Họ và tên", "", "Ngày sinh", "ĐĐGtx", "", "", "ĐĐGtx", "ĐĐGgk", "ĐĐGck", "ĐTB mhk", "Nhận xét"],
+        ["STT", "Mã học sinh", "Họ và tên", "", "Ngày sinh", "ĐĐGtx", "", "", "ĐĐGtx", "ĐĐGgk", "ĐĐGck", "ĐTB \nmhk", "Nhận xét"],
         ["", "", "", "", "", "TX1", "TX2", "TX3", "TX4", "GK1", "CK1", "", ""]
     ];
 
@@ -631,8 +691,8 @@ window.exportEduFile = function() {
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    XLSX.utils.book_append_sheet(wb, ws, `so_diem_${s.currentClass}`);
-    XLSX.writeFile(wb, `So_Diem_EDU_Lop_${s.currentClass}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, `so_diem_${expClass}`);
+    XLSX.writeFile(wb, `So_Diem_${expSubject}_${expClass}.xlsx`);
     window.showToast("✅ Đã xuất File EDU thành công!");
 };
 
@@ -730,7 +790,7 @@ window.updateCommentRule = function(idx, field, val) {
     if (field === 'min' || field === 'max') {
         appData.settings.commentRules[idx][field] = Number(val);
     } else {
-        appData.settings.commentRules[idx][text] = val.trim();
+        appData.settings.commentRules[idx].text = val.trim();
     }
     window.saveData();
 };
@@ -789,7 +849,7 @@ window.confirmAddNewStudent = function() {
     window.saveData();
     window.closeModal('modal-add-student');
     document.getElementById('add-stu-name').value = '';
-    window.showToast(`Đã thêm em ${name} vào lớp ${appData.settings.currentClass}!`);
+    window.showToast(`Đã thêm em ${name}!`);
 };
 
 window.backupAppDataJSON = function() {
