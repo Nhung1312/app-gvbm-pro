@@ -863,9 +863,24 @@ window.backupAppDataJSON = function() {
 };
 
 window.resetData = function() {
-    if(confirm("XÓA SẠCH DỮ LIỆU CÁC LỚP TRÊN MÁY NÀY? Thao tác này giúp bạn dọn dẹp bộ nhớ để nhập file EDU mới từ đầu.")) {
-        localStorage.removeItem('gvbmData_v1');
-        location.reload();
+    if(confirm("XÓA SẠCH DỮ LIỆU CÁC LỚP? Thao tác này sẽ xóa vĩnh viễn dữ liệu trên máy và trên Đám mây để bạn nhập lại từ đầu.")) {
+        appData.classes = {};
+        appData.settings.currentClass = "";
+        
+        localStorage.setItem('gvbmData_v1', JSON.stringify(appData));
+        
+        if (currentUser) {
+            const docRef = doc(firestoreDb, "DuLieuGVBM", currentUser.uid);
+            setDoc(docRef, appData).then(() => {
+                window.showToast("Đã dọn dẹp sạch sẽ!", "success");
+                setTimeout(() => location.reload(), 1000);
+            }).catch(e => {
+                console.error("Lỗi dọn dẹp:", e);
+                location.reload();
+            });
+        } else {
+            location.reload();
+        }
     }
 };
 
