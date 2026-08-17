@@ -1,10 +1,10 @@
-// --- HỆ THỐNG FIREBASE ĐĂNG NHẬP ---
+// ================= FIREBASE AUTH & DATABASE GVBM =================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAQz-4TAujSNhDV8wQY82-wnCTGJtdxhsM",
+  apiKey: "AIzaSyAQz-4TAujSNhDV8wQY82-wnCTGJtdxhsM", 
   authDomain: "quan-ly-day-them-f7b1e.firebaseapp.com",
   projectId: "quan-ly-day-them-f7b1e",
   storageBucket: "quan-ly-day-them-f7b1e.firebasestorage.app",
@@ -17,27 +17,23 @@ const auth = getAuth(app);
 const firestoreDb = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
+let currentUser = null;
 const loginScreen = document.getElementById('login-screen');
 const btnLogin = document.getElementById('btn-login');
 
-btnLogin.addEventListener('click', () => {
-    signInWithPopup(auth, provider).then((result) => {
-        console.log("Đăng nhập thành công:", result.user.email);
-    }).catch((error) => {
-        alert("Lỗi đăng nhập: " + error.message);
+if(btnLogin) {
+    btnLogin.addEventListener('click', () => {
+        signInWithPopup(auth, provider).catch((error) => alert("Lỗi đăng nhập: " + error.message));
     });
-});
-
-let currentUser = null; 
+}
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
-        loginScreen.style.display = 'none';
-        console.log("Đã đăng nhập:", user.email);
+        if(loginScreen) loginScreen.style.display = 'none';
 
-        const userRef = doc(firestoreDb, 'nguoi_dung', user.uid);
-        let hasAccess = true; 
+        const userRef = doc(firestoreDb, 'khach_hang_gvbm', user.uid);
+        let hasAccess = true;
 
         try {
             const docUserSnap = await getDoc(userRef);
@@ -46,829 +42,848 @@ onAuthStateChanged(auth, async (user) => {
             if (!docUserSnap.exists()) {
                 let ngayHetHan = new Date();
                 ngayHetHan.setDate(ngayHienTai.getDate() + 30);
-
-                await setDoc(userRef, {
-                    email: user.email,
-                    ngay_dang_ky: ngayHienTai.toISOString(),
-                    ngay_het_han: ngayHetHan.toISOString()
-                });
-                console.log("Tặng 30 ngày trải nghiệm!");
+                await setDoc(userRef, { email: user.email, ngay_dang_ky: ngayHienTai.toISOString(), ngay_het_han: ngayHetHan.toISOString() });
             } else {
                 const duLieu = docUserSnap.data();
                 const ngayHetHan = new Date(duLieu.ngay_het_han);
-
-                // TÍNH SỐ NGÀY CÒN LẠI
                 const timeDiff = ngayHetHan.getTime() - ngayHienTai.getTime();
                 const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
                 if (daysLeft <= 0) {
                     hasAccess = false;
                     document.getElementById('man-hinh-thu-phi').style.display = 'block';
-
                     let emailElements = document.getElementsByClassName('email-user');
-                    for (let i = 0; i < emailElements.length; i++) {
-                        emailElements[i].innerText = user.email.split('@')[0];
-                    }
-                } else {
-                    document.getElementById('man-hinh-thu-phi').style.display = 'none';
-                    console.log("Tài khoản còn hạn đến: ", ngayHetHan.toLocaleDateString());
-
-                    // CẢNH BÁO KHI CÒN <= 5 NGÀY
-                    if (daysLeft <= 5) {
-                        const banner = document.getElementById('trial-warning-banner');
-                        if (banner) {
-                            banner.style.display = 'flex';
-                            document.getElementById('trial-days-left').innerText = daysLeft;
-                            const upgradePrefix = document.getElementById('upgrade-email-prefix');
-                            if (upgradePrefix) upgradePrefix.innerText = user.email.split('@')[0];
-                        }
-                    }
+                    for (let i = 0; i < emailElements.length; i++) emailElements[i].innerText = user.email.split('@')[0];
                 }
             }
-        } catch (error) {
-            console.log("Lỗi kiểm tra bản quyền:", error);
-        }
+        } catch (error) { console.log("Lỗi kiểm tra bản quyền:", error); }
 
         if (hasAccess) {
-            // NÂNG CẤP LÊN ONSNAPSHOT ĐỂ NGHE SEPAY THEO THỜI GIAN THỰC
-            const docRef = doc(firestoreDb, "DuLieuDayThem", user.uid);
-            onSnapshot(docRef, (docSnap) => {
+            try {
+                const docRef = doc(firestoreDb, "DuLieuGVBM", user.uid);
+                const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
-                    if (!docSnap.metadata.hasPendingWrites) {
-                        db = Object.assign({}, defaultData, docSnap.data());
-                        db.settings = db.settings || { bankId: 'MB', bankAcc: '123456789' };
-                        localStorage.setItem('tutoringData', JSON.stringify(db));
-                        if (typeof updateDashboard === 'function') updateDashboard();
-                        if (typeof renderClasses === 'function') renderClasses();
-                        if (document.getElementById('view-tuition')?.classList.contains('active')) {
-                            if (typeof renderTuition === 'function') renderTuition();
-                        }
-                        if (document.getElementById('view-statistics')?.classList.contains('active')) {
-                            if (typeof renderStatistics === 'function') renderStatistics();
-                        }
-                        console.log("☁️ Dữ liệu đã được đồng bộ từ mây!");
-                    }
+                    appData = docSnap.data(); 
                 } else {
-                    setDoc(docRef, db);
+                    await setDoc(docRef, appData); 
                 }
-            });
-
-            if (typeof generateSchedules === 'function') generateSchedules();
+            } catch(e) {
+                console.warn("Lỗi tải mây:", e);
+            }
+            window.initAppUI();
         }
-
     } else {
         currentUser = null;
-        loginScreen.style.display = 'flex';
+        if(loginScreen) loginScreen.style.display = 'flex';
     }
 });
 
-// TÍNH NĂNG ĐĂNG XUẤT 
 window.logoutApp = function() {
     if(confirm("Bạn có chắc chắn muốn đăng xuất khỏi thiết bị này?")) {
         signOut(auth).then(() => {
-            localStorage.removeItem('tutoringData'); 
+            localStorage.removeItem('gvbmData_v1'); 
             location.reload();
         });
     }
 };
 
-// ================= DATA STRUCTURE =================
-const defaultData = { 
-    classes: [], 
-    students: [], 
-    holidays: [], 
-    sessions: [], 
-    attendance: [], 
-    tuitions: [],
-    settings: { bankId: 'MB', bankAcc: '123456789' }
-};
+// ================= DỮ LIỆU MẶC ĐỊNH & KHỞI TẠO =================
+const defaultCommentRules = [
+    { min: 9.0, max: 10.0, text: "Nắm vững kiến thức, tiếp tục phát huy." },
+    { min: 8.0, max: 8.9, text: "Nắm khá vững kiến thức, cần phát huy." },
+    { min: 6.5, max: 7.9, text: "Nắm được kiến thức, cần cố gắng thêm." },
+    { min: 5.0, max: 6.4, text: "Đạt yêu cầu, cần củng cố kiến thức." },
+    { min: 3.5, max: 4.9, text: "Chưa đạt yêu cầu, cần cố gắng hơn." },
+    { min: 0.0, max: 3.4, text: "Chưa nắm vững kiến thức, cần củng cố thêm." }
+];
 
-let stored = JSON.parse(localStorage.getItem('tutoringData'));
-let db = stored ? Object.assign({}, defaultData, stored) : defaultData;
-db.classes = db.classes || []; db.students = db.students || []; db.holidays = db.holidays || [];
-db.sessions = db.sessions || []; db.attendance = db.attendance || []; db.tuitions = db.tuitions || [];
-db.settings = db.settings || { bankId: 'MB', bankAcc: '123456789' };
+function initData() {
+    let saved = JSON.parse(localStorage.getItem('gvbmData_v1'));
+    if (!saved) {
+        return {
+            settings: {
+                teacherName: "Thầy / Cô",
+                subject: "Toán học",
+                year: "2025-2026",
+                semester: "HK1",
+                currentClass: "TOÁN HỌC - 6A",
+                txColumns: 4,
+                commentRules: defaultCommentRules
+            },
+            classes: {}
+        };
+    }
+    return saved;
+}
 
-async function saveData() {
-    localStorage.setItem('tutoringData', JSON.stringify(db));
-    updateDashboard(); 
+let appData = initData();
+let syncTimeout = null;
 
+window.saveData = function() { 
+    localStorage.setItem('gvbmData_v1', JSON.stringify(appData)); 
+    window.refreshAllViews();
     if (currentUser) {
-        try {
-            const docRef = doc(firestoreDb, "DuLieuDayThem", currentUser.uid);
-            await setDoc(docRef, db);
-            console.log("☁️ Đã lưu dữ liệu lên mây thành công!");
-        } catch (e) {
-            console.error("Lỗi khi đồng bộ lên mây: ", e);
-        }
-    }
-}
-
-function getTodayStr() { return new Date().toISOString().split('T')[0]; }
-function parseDateVi(dStr) { 
-    if(!dStr) return '--/--';
-    const d = new Date(dStr); 
-    const dd = String(d.getDate()).padStart(2, '0'); 
-    const mm = String(d.getMonth() + 1).padStart(2, '0'); 
-    return `${dd}/${mm}`; 
-}
-
-window.onload = () => { 
-    generateSchedules(); updateDashboard(); renderClasses(); populateClassSelects(); 
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+        if (syncTimeout) clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(() => {
+            const docRef = doc(firestoreDb, "DuLieuGVBM", currentUser.uid);
+            setDoc(docRef, appData).then(() => { console.log("☁️ Đã đồng bộ nền lên Firebase!"); }).catch(e => console.error(e));
+        }, 2000);
     }
 };
 
-function showToast(msg, type='success') {
-    const box = document.getElementById('toast-container'); const t = document.createElement('div'); t.className = `toast ${type}`;
-    t.innerHTML = `<i class="fas ${type==='success'?'fa-check-circle':'fa-exclamation-circle'}"></i> <span>${msg}</span>`; box.appendChild(t);
-    setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(), 300); }, 2500);
-}
+window.showToast = function(message, type = 'success') {
+    const container = document.getElementById('toast-container'); 
+    const toast = document.createElement('div'); 
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle text-green' : 'fa-exclamation-circle text-red'}"></i> <span>${message}</span>`; 
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(-20px)'; setTimeout(() => toast.remove(), 300); }, 3000);
+};
 
-function switchView(id, el) {
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+// ================= ĐIỀU HƯỚNG VIEW & DRAWER =================
+window.toggleDrawer = function(open) {
+    document.getElementById('drawer').classList.toggle('active', open);
+    document.getElementById('drawer-overlay').classList.toggle('active', open);
+};
+
+window.switchView = function(viewId, navEl = null) {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    window.scrollTo(0, 0);
+
+    const titleMap = {
+        'view-overview': 'Tổng quan',
+        'view-students': 'Học sinh',
+        'view-in-class': 'Trong tiết',
+        'view-gradebook': 'Sổ điểm',
+        'view-statistics': 'Thống kê',
+        'view-settings': 'Cài đặt'
+    };
+    document.getElementById('page-title').innerText = titleMap[viewId] || 'GVBM Pro';
+
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    if(navEl) navEl.classList.add('active');
     
-    if(el) { document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); el.classList.add('active'); }
-    
-    if(id === 'view-home') updateDashboard();
-    if(id === 'view-classes') renderClasses();
-    if(id === 'view-students') renderStudents();
-    if(id === 'view-tuition') renderTuition();
-    if(id === 'view-statistics') renderStatistics();
-    if(id === 'view-calendar') {
-        let activeTabBtn = document.querySelector('#view-calendar .tab-btn.active');
-        if(activeTabBtn) activeTabBtn.click();
-        else switchCalTab('study', document.querySelectorAll('#view-calendar .tab-btn')[0]);
-    }
-}
+    window.refreshAllViews();
+};
 
-function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-function showLoading(show, text="Đang xử lý...") { document.getElementById('loading-text').innerText = text; document.getElementById('loading-overlay').classList.toggle('hidden', !show); }
+window.openModal = function(id) { document.getElementById(id).style.display = 'flex'; };
+window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; };
 
-// ================= LỊCH ĐIỀU HƯỚNG 4 TAB =================
-function switchCalTab(tabId, el) {
-    document.querySelectorAll('#view-calendar .tab-btn').forEach(btn => btn.classList.remove('active'));
-    if(el) el.classList.add('active');
-    document.querySelectorAll('.cal-tab').forEach(tab => tab.classList.add('hidden'));
-    document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-
-    if(tabId === 'holiday') renderHolidays();
-    if(tabId === 'study') renderUpcomingClasses();
-    if(tabId === 'makeup') renderMakeups();
-    if(tabId === 'month') renderMonthClasses();
-}
-
-function renderUpcomingClasses() {
-    const list = document.getElementById('upcoming-list'); list.innerHTML = ''; let todayStr = getTodayStr();
-    let upcomings = db.sessions.filter(s => s.date >= todayStr && s.status !== 'canceled').sort((a,b) => { if(a.date !== b.date) return (a.date || "").localeCompare(b.date || ""); return String(a.start || "").localeCompare(String(b.start || "")); }).slice(0, 20); 
-    if(upcomings.length === 0) { list.innerHTML = '<div class="text-center text-muted" style="padding:40px;">Không có lịch học sắp tới.</div>'; return; }
-    upcomings.forEach(s => {
-        let cls = db.classes.find(c => c.id == s.classId); if(!cls) return;
-        let badge = s.isMakeup ? `<span class="date-badge" style="background:var(--warning-bg); color:var(--warning);">Dạy bù</span>` : '';
-        list.innerHTML += `<div class="list-item"><div class="list-item-info"><strong style="color:var(--primary-dark); font-size:1.05rem;">${cls.name}</strong><small style="color:var(--text-main); font-weight:700;">${parseDateVi(s.date)} • Từ ${s.start||'--:--'} đến ${s.end||'--:--'} ${s.note ? `(${s.note})` : ''}</small></div>${badge}</div>`;
-    });
-}
-
-function renderMakeups() {
-    const list = document.getElementById('makeup-list'); list.innerHTML = '';
-    let makeups = db.sessions.filter(s => s.isMakeup).sort((a,b) => (b.date||"").localeCompare(a.date||""));
-    if(makeups.length === 0) { list.innerHTML = '<div class="text-center text-muted" style="padding:40px;">Chưa có lịch dạy bù nào được tạo.</div>'; return; }
-    makeups.forEach(s => {
-        let cls = db.classes.find(c => c.id == s.classId); if(!cls) return;
-        list.innerHTML += `<div class="list-item"><div class="list-item-info"><strong style="color:var(--primary-dark); font-size:1.05rem;">${cls.name}</strong><small>${parseDateVi(s.date)} • ${s.start||'--:--'} - ${s.end||'--:--'}</small><small class="text-orange">${s.note||''}</small></div><button class="btn-outline-action text-red" onclick="deleteSession('${s.id}')"><i class="fas fa-trash"></i></button></div>`;
-    });
-}
-
-function saveMakeup() {
-    let classId = document.getElementById('makeup-class').value; let date = document.getElementById('makeup-date').value; let start = document.getElementById('makeup-start').value; let end = document.getElementById('makeup-end').value; let note = document.getElementById('makeup-note').value || 'Dạy bù';
-    if(!classId || !date || !start || !end) return showToast("Vui lòng nhập đủ ngày và giờ!", "error");
-    db.sessions.push({ id: 'sess_' + Date.now(), classId: parseInt(classId), date: date, start: start, end: end, status: 'pending', isMakeup: true, note: note });
-    saveData(); closeModal('modal-add-makeup'); renderMakeups(); showToast("✅ Đã thêm lịch dạy bù vào Hệ thống!");
-}
-
-function deleteSession(id) { if(confirm("Xóa lịch dạy bù này?")) { db.sessions = db.sessions.filter(s => String(s.id) !== String(id)); saveData(); renderMakeups(); showToast("Đã xóa lịch bù!"); } }
-
-function renderMonthClasses() {
-    const list = document.getElementById('month-list'); list.innerHTML = '';
-    let today = new Date(); let y = today.getFullYear(), m = today.getMonth();
-    let monthStart = new Date(y, m, 1).toISOString().split('T')[0]; let monthEnd = new Date(y, m + 1, 0).toISOString().split('T')[0];
-    let monthSessions = db.sessions.filter(s => s.date >= monthStart && s.date <= monthEnd).sort((a,b) => (a.date||"").localeCompare(b.date||""));
-    if(monthSessions.length === 0) { list.innerHTML = '<div class="text-center text-muted" style="padding:40px;">Tháng này không có lịch học.</div>'; return; }
-    let byDate = {}; monthSessions.forEach(s => { if(!byDate[s.date]) byDate[s.date] = []; byDate[s.date].push(s); });
-    Object.keys(byDate).forEach(date => {
-        let items = byDate[date].sort((a,b)=>String(a.start||"").localeCompare(String(b.start||""))).map(s => {
-            let cls = db.classes.find(c => c.id == s.classId);
-            let color = s.status === 'canceled' ? 'color:var(--danger)' : (s.isMakeup ? 'color:var(--warning)' : 'color:var(--primary-dark)');
-            let strike = s.status === 'canceled' ? 'text-decoration:line-through; opacity:0.6;' : '';
-            let pointer = s.status !== 'canceled' ? 'cursor:pointer;' : '';
-            let onClick = s.status !== 'canceled' ? `onclick="openAttendance('${s.id}', '${cls?cls.name:''}')"` : '';
-            let checkIcon = s.status === 'completed' ? '<i class="fas fa-check-circle text-green" style="margin-left:5px;"></i>' : '';
-            return `<div ${onClick} style="margin-top:6px; font-size:0.85rem; font-weight:700; ${strike} ${color} ${pointer}">• ${s.start||'--:--'}: ${cls?cls.name:'Lớp xóa'} ${s.status === 'canceled' ? '(Nghỉ)' : ''} ${s.isMakeup ? '(Dạy bù)' : ''} ${checkIcon}</div>`;
-        }).join('');
-        list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;"><strong style="color:var(--text-main); font-size:1.1rem;"><i class="fas fa-calendar-day" style="color:#cbd5e1;"></i> ${parseDateVi(date)}</strong><div style="width:100%; border-top:1px dashed #eee; margin-top:8px; padding-top:4px;">${items}</div></div>`;
-    });
-}
-
-// ================= AUTO SCHEDULING =================
-function isHoliday(dateStr, classId) {
-    const d = new Date(dateStr);
-    for(let h of db.holidays) {
-        if(h.classId === 'ALL' || h.classId == classId) {
-            let start = new Date(h.start); start.setHours(0,0,0,0); let end = new Date(h.end); end.setHours(23,59,59,999);
-            if(d >= start && d <= end) return h;
-        }
-    }
-    return null;
-}
-
-function generateSchedules() {
-    const today = new Date(); const maxDate = new Date(); maxDate.setDate(today.getDate() + 90);
-    db.classes.forEach(cls => {
-        if(!cls.tkb || cls.tkb.length === 0) return; let currDate = new Date(cls.startDate); if(isNaN(currDate)) return;
-        db.sessions = db.sessions.filter(s => { if (s.classId != cls.id) return true; if (s.isMakeup) return true; if (s.status === 'completed') return true; return false; });
-        while(currDate <= maxDate) {
-            let dStr = currDate.toISOString().split('T')[0]; let dow = currDate.getDay() === 0 ? 8 : currDate.getDay() + 1; 
-            cls.tkb.forEach(t => {
-                if(t.dayOfWeek == dow) {
-                    let hol = isHoliday(dStr, cls.id);
-                    let exist = db.sessions.find(s => s.classId == cls.id && s.date === dStr && s.start === t.start && !s.isMakeup);
-                    if(!exist) { db.sessions.push({ id: 'sess_' + Date.now() + Math.floor(Math.random()*10000), classId: cls.id, date: dStr, start: t.start, end: t.end, status: hol ? 'canceled' : 'pending', isMakeup: false, note: hol ? `Nghỉ: ${hol.name}` : '' }); }
-                }
-            });
-            currDate.setDate(currDate.getDate() + 1);
-        }
-    });
-    saveData(); 
-}
-
-// ================= DASHBOARD & QUÉT RÁC TỰ ĐỘNG =================
-function updateDashboard() {
-    db.sessions = db.sessions.filter(s => db.classes.some(c => c.id == s.classId)); 
-    db.students = db.students.filter(s => db.classes.some(c => c.id == s.classId)); 
-    db.tuitions = db.tuitions.filter(t => db.students.some(st => st.id == t.studentId)); 
-    db.attendance = db.attendance.filter(a => db.sessions.some(s => String(s.id) === String(a.sessionId)));
-    
-    document.getElementById('dash-total-classes').innerText = db.classes.length; 
-    document.getElementById('dash-total-students').innerText = db.students.length;
-    let todayStr = getTodayStr(); document.getElementById('dash-today-date').innerText = parseDateVi(todayStr);
-    
-    const missedList = document.getElementById('dash-missed-list'); if (missedList) missedList.innerHTML = '';
-    let missedSessions = db.sessions.filter(s => s.date < todayStr && s.status === 'pending').sort((a,b) => (a.date||"").localeCompare(b.date||""));
-    if(missedSessions.length > 0 && missedList) {
-        missedList.innerHTML = `<div class="section-title"><h3 class="text-red">⚠️ QUÊN ĐIỂM DANH (${missedSessions.length})</h3></div>`;
-        missedSessions.forEach(s => {
-            let cls = db.classes.find(c => c.id == s.classId); if(!cls) return;
-            let classSessions = db.sessions.filter(x => x.classId == cls.id && x.status !== 'canceled').sort((a,b) => { let d1 = new Date(a.date).getTime(), d2 = new Date(b.date).getTime(); if(d1 !== d2) return d1 - d2; return String(a.start||"").localeCompare(String(b.start||"")); });
-            let sessionIndex = classSessions.findIndex(x => String(x.id) === String(s.id)) + 1;
-            missedList.innerHTML += `<div class="dash-sched-card" style="border-left-color: var(--danger); background: #fef2f2;"><div class="dsc-time">${parseDateVi(s.date)} • ${s.start||'--:--'} - ${s.end||'--:--'}</div><div class="dsc-class text-red">🔴 ${cls.name}</div><div class="dsc-meta">Buổi ${sessionIndex}</div><button class="btn-att-now" style="background: var(--danger);" onclick="openAttendance('${s.id}', '${cls.name}')"><i class="fas fa-exclamation-triangle"></i> ĐIỂM DANH BÙ NGAY</button></div>`;
-        });
+// ================= TỰ ĐỘNG TÍNH TOÁN & NHẬN XÉT =================
+window.calculateDTB = function(txArr, gk, ck) {
+    let allGrades = [...txArr, gk, ck];
+    if (allGrades.some(g => typeof g === 'string' && (g.toUpperCase() === 'Đ' || g.toUpperCase() === 'CĐ'))) {
+        if (ck) return ck;
+        if (gk) return gk;
+        let lastTx = [...txArr].reverse().find(g => g);
+        return lastTx || "";
     }
 
-    let todays = db.sessions.filter(s => s.date === todayStr).sort((a,b) => String(a.start||"").localeCompare(String(b.start||"")));
-    let activeTodays = todays.filter(s => s.status !== 'canceled'); document.getElementById('dash-today-sessions').innerText = activeTodays.length;
-    
-    // Đếm học sinh nợ tiền tự động
-    let dueCount = 0;
-    db.classes.forEach(c => {
-        let tData = getTuitionData(c.id);
-        dueCount += tData.filter(d => !d.isPaid).length;
-    });
-    const dashDue = document.getElementById('dash-tuition-due');
-    if(dashDue) dashDue.innerText = dueCount;
+    let validTx = txArr.filter(x => x !== "" && x !== null && !isNaN(Number(x))).map(Number);
+    let numGk = (gk !== "" && gk !== null && !isNaN(Number(gk))) ? Number(gk) : null;
+    let numCk = (ck !== "" && ck !== null && !isNaN(Number(ck))) ? Number(ck) : null;
 
-    let globalHol = db.holidays.find(h => { let sd = new Date(h.start); sd.setHours(0,0,0,0); let ed = new Date(h.end); ed.setHours(23,59,59,999); let td = new Date(todayStr); return h.classId === 'ALL' && td >= sd && td <= ed; });
-    const list = document.getElementById('dash-schedule-list'); list.innerHTML = '';
-    if(activeTodays.length === 0) { 
-        if (globalHol) { list.innerHTML = `<div class="holiday-card-large"><h3>🎉 HÔM NAY NGHỈ</h3><span>${globalHol.name}</span></div>`; } 
-        else { list.innerHTML = '<div class="text-center text-muted mt-20" style="font-weight:600;">Hôm nay không có lịch học.</div>'; }
-        return; 
+    if (validTx.length === 0 && numGk === null && numCk === null) return "";
+
+    let sum = validTx.reduce((a, b) => a + b, 0);
+    let count = validTx.length;
+
+    if (numGk !== null) { sum += numGk * 2; count += 2; }
+    if (numCk !== null) { sum += numCk * 3; count += 3; }
+
+    if (count === 0) return "";
+    return (sum / count).toFixed(1);
+};
+
+window.getAutoComment = function(dtb) {
+    if (dtb === "" || dtb === null) return "";
+    
+    if (typeof dtb === 'string') {
+        let d = dtb.toUpperCase();
+        if (d === 'Đ' || d === 'ĐẠT') return "Đạt yêu cầu môn học.";
+        if (d === 'CĐ' || d === 'CHƯA ĐẠT') return "Chưa đạt yêu cầu, cần cố gắng thêm.";
     }
 
-    const now = new Date(); const currentMins = now.getHours() * 60 + now.getMinutes();
-
-    activeTodays.forEach(s => {
-        let cls = db.classes.find(c => c.id == s.classId); if(!cls) return;
-        let stuCount = db.students.filter(st => st.classId == cls.id).length;
-        let classSessions = db.sessions.filter(x => x.classId == cls.id && x.status !== 'canceled').sort((a,b) => { let d1 = new Date(a.date).getTime(), d2 = new Date(b.date).getTime(); if(d1 !== d2) return d1 - d2; return String(a.start||"").localeCompare(String(b.start||"")); });
-        let sessionIndex = classSessions.findIndex(x => String(x.id) === String(s.id)) + 1;
-        let isDone = s.status === 'completed'; let startParts = (s.start||"00:00").split(':'); let startMins = parseInt(startParts[0]||0)*60 + parseInt(startParts[1]||0); let isUpcoming = !isDone && (startMins - currentMins <= 60 && startMins - currentMins >= -120);
-
-        if (isUpcoming) { list.innerHTML += `<div class="dash-sched-card highlight"><div class="dsc-badge">🔔 SẮP ĐẾN GIỜ HỌC</div><div class="dsc-time">${s.start||'--:--'} - ${s.end||'--:--'}</div><div class="dsc-class">🔵 ${cls.name}</div><div class="dsc-meta">Buổi ${sessionIndex} • ${stuCount} học sinh</div><button class="btn-att-now" onclick="openAttendance('${s.id}', '${cls.name}')"><i class="fas fa-clipboard-check"></i> ĐIỂM DANH NGAY</button></div>`;
-        } else { list.innerHTML += `<div class="dash-sched-card ${isDone ? 'done' : ''}"><div class="dsc-time">${s.start||'--:--'} - ${s.end||'--:--'}</div><div class="dsc-class">🔵 ${cls.name}</div><div class="dsc-meta">Buổi ${sessionIndex} • ${stuCount} học sinh</div>${isDone ? `<button class="btn-att done" onclick="openAttendance('${s.id}', '${cls.name}')"><i class="fas fa-check-double"></i> ĐÃ ĐIỂM DANH (Bấm sửa)</button>` : `<button class="btn-att" onclick="openAttendance('${s.id}', '${cls.name}')"><i class="fas fa-clipboard-check"></i> ĐIỂM DANH</button>`}</div>`; }
-    });
-}
-
-// ================= ĐIỂM DANH =================
-let currentAttSessionId = null;
-function openAttendance(sessionId, className) {
-    currentAttSessionId = String(sessionId); const session = db.sessions.find(s => String(s.id) === currentAttSessionId);
-    if(!session) return showToast("Không tìm thấy dữ liệu buổi học!", "error");
-    document.getElementById('att-class-name').innerText = className; document.getElementById('att-date-info').innerText = `${parseDateVi(session.date)} (${session.start||'--:--'} - ${session.end||'--:--'})`;
+    let val = Number(dtb);
+    if (isNaN(val)) return "";
     
-    let stus = db.students.filter(s => s.classId == session.classId); let html = '';
-    stus.forEach(stu => {
-        let record = db.attendance.find(a => String(a.sessionId) === currentAttSessionId && a.studentId == stu.id);
-        let status = record ? record.status : 'có mặt'; let cl = status === 'vắng' ? 'vắng' : (status === 'phép' ? 'phép' : '');
-        html += `<div class="att-student ${cl}" id="att-row-${stu.id}"><div class="att-name">${stu.name}</div><div class="att-actions"><button class="att-btn ${status==='có mặt'?'active có mặt':''}" onclick="setAtt(${stu.id}, 'có mặt')"><i class="fas fa-check"></i></button><button class="att-btn ${status==='phép'?'active phép':''}" onclick="setAtt(${stu.id}, 'phép')">P</button><button class="att-btn ${status==='vắng'?'active vắng':''}" onclick="setAtt(${stu.id}, 'vắng')"><i class="fas fa-times"></i></button></div></div>`;
-    });
-    document.getElementById('att-student-list').innerHTML = html; openModal('modal-attendance');
-}
-
-function setAtt(stuId, status) {
-    const row = document.getElementById(`att-row-${stuId}`); row.className = `att-student ${status === 'có mặt' ? '' : status}`;
-    const btns = row.querySelectorAll('.att-btn'); btns.forEach(b => b.className = 'att-btn');
-    if(status==='có mặt') btns[0].classList.add('active', 'có', 'mặt'); if(status==='phép') btns[1].classList.add('active', 'phép'); if(status==='vắng') btns[2].classList.add('active', 'vắng');
-    let exist = db.attendance.find(a => String(a.sessionId) === currentAttSessionId && a.studentId == stuId);
-    if(exist) exist.status = status; else db.attendance.push({ sessionId: currentAttSessionId, studentId: stuId, status: status });
-}
-
-function submitAttendance() {
-    try {
-        let session = db.sessions.find(s => String(s.id) === currentAttSessionId);
-        if(!session) throw new Error("Dữ liệu buổi học bị mất, vui lòng tải lại trang!");
-        let stus = db.students.filter(s => s.classId == session.classId);
-        stus.forEach(stu => { let exist = db.attendance.find(a => String(a.sessionId) === currentAttSessionId && a.studentId == stu.id); if(!exist) db.attendance.push({ sessionId: currentAttSessionId, studentId: stu.id, status: 'có mặt' }); });
-        
-        session.status = 'completed'; saveData(); 
-        if(document.getElementById('view-classes').classList.contains('active')) renderClasses();
-        closeModal('modal-attendance'); showToast("Đã lưu điểm danh!");
-    } catch(err) { showToast("Lỗi: " + err.message, "error"); }
-}
-
-// ================= TÀI CHÍNH TỰ ĐỘNG & SEPAY =================
-function saveBankSettings() {
-    db.settings = db.settings || {};
-    db.settings.bankId = document.getElementById('set-bank-id').value.trim() || 'MB';
-    db.settings.bankAcc = document.getElementById('set-bank-acc').value.trim() || '123456789';
-    saveData(); closeModal('modal-settings'); showToast("Đã lưu cấu hình Ngân hàng!");
-}
-
-function getTuitionData(classId) {
-    let result = [];
-    let studentsInClass = db.students.filter(s => s.classId == classId);
-    let cls = db.classes.find(c => c.id == classId);
-    if (!cls) return result;
-
-    let cycle = parseInt(cls.cycle) || 10;
-
-    studentsInClass.forEach(stu => {
-        let fee = parseInt(stu.customFee) || parseInt(cls.fee) || 0;
-        let paidCycles = db.tuitions.filter(t => t.studentId == stu.id).length;
-        let currentCycleNum = paidCycles + 1; 
-
-        // Khấu trừ phép của đợt ngay trước đó
-        let discountCount = 0;
-        if (paidCycles > 0) {
-            let classSessions = db.sessions.filter(s => s.classId == cls.id && s.status === 'completed').sort((a,b)=> (a.date||"").localeCompare(b.date||""));
-            let prevStart = (paidCycles - 1) * cycle;
-            let prevEnd = paidCycles * cycle;
-            let prevSessIds = classSessions.slice(prevStart, prevEnd).map(s => String(s.id));
-            discountCount = db.attendance.filter(a => a.studentId == stu.id && a.status === 'phép' && prevSessIds.includes(String(a.sessionId))).length;
-        }
-
-        let upfrontFee = cycle * fee;
-        let discountFee = discountCount * fee;
-        let finalAmount = upfrontFee - discountFee;
-
-        let ckContent = `HP ${stu.id}`; 
-        let bankId = (db.settings && db.settings.bankId) ? db.settings.bankId : 'MB';
-        let bankAcc = (db.settings && db.settings.bankAcc) ? db.settings.bankAcc : '123456789';
-        let qrLink = `https://img.vietqr.io/image/${bankId}-${bankAcc}-compact2.png?amount=${finalAmount}&addInfo=${encodeURIComponent(ckContent)}`;
-
-        let isPaid = db.tuitions.find(t => t.studentId == stu.id && t.cycleNumber === currentCycleNum) ? true : false;
-
-        result.push({
-            stu: stu, cls: cls, cycleNum: currentCycleNum, cycleSessions: cycle,
-            upfrontFee: upfrontFee, discountCount: discountCount, discountFee: discountFee, 
-            finalAmount: finalAmount, isPaid: isPaid, qrLink: qrLink, ckContent: ckContent
-        });
-    });
-    return result;
-}
-
-function renderTuition() {
-    populateClassSelects();
-    let select = document.getElementById('tuition-class-select');
-    if(!select || !select.value) {
-        if(select && select.options.length > 0) select.selectedIndex = 0;
+    let rules = appData.settings.commentRules || defaultCommentRules;
+    for (let r of rules) {
+        if (val >= r.min && val <= r.max) return r.text;
     }
-    let cid = select ? select.value : null; 
+    return "Cần cố gắng nhiều hơn.";
+};
+
+// ================= RENDER CÁC MÀN HÌNH =================
+window.initAppUI = function() {
+    window.renderClassSelector();
+    window.refreshAllViews();
+};
+
+window.renderClassSelector = function() {
+    const select = document.getElementById('global-class-select');
+    select.innerHTML = '';
+    const classList = Object.keys(appData.classes);
+    if(classList.length === 0) {
+        appData.classes["TOÁN HỌC - 6A"] = [];
+        classList.push("TOÁN HỌC - 6A");
+    }
+    if(!appData.classes[appData.settings.currentClass]) {
+        appData.settings.currentClass = classList[0];
+    }
+    classList.forEach(c => {
+        let opt = document.createElement('option');
+        opt.value = c; opt.innerText = c; 
+        if(c === appData.settings.currentClass) opt.selected = true;
+        select.appendChild(opt);
+    });
+};
+
+window.changeCurrentClass = function(newClass) {
+    appData.settings.currentClass = newClass;
+    window.saveData();
+    window.showToast(`Đã chuyển sang ${newClass}`);
+};
+
+window.refreshAllViews = function() {
+    const s = appData.settings;
+    const currentList = appData.classes[s.currentClass] || [];
+
+    let keyParts = s.currentClass.split(' - ');
+    let displaySubject = keyParts.length > 1 ? keyParts[0] : s.subject;
+    let displayClass = keyParts.length > 1 ? keyParts[1] : s.currentClass;
+
+    document.getElementById('dash-teacher-name').innerText = s.teacherName;
+    document.getElementById('drawer-teacher-name').innerText = s.teacherName;
+    document.getElementById('drawer-subject-name').innerText = `${displaySubject} • Lớp ${displayClass}`;
     
-    const list = document.getElementById('tuition-due-list'); 
-    if(list) list.innerHTML = '';
-    
-    if(!cid) {
-        if(list) list.innerHTML = '<div class="text-center text-muted" style="padding:30px;">Vui lòng tạo nhóm lớp trước!</div>';
-        return;
+    let parts = s.teacherName.trim().split(' ');
+    let avatarText = "GV";
+    if (parts.length > 0 && parts[parts.length-1]) {
+        avatarText = parts[parts.length-1].substring(0,2).toUpperCase();
+    }
+    document.getElementById('drawer-avatar').innerText = avatarText;
+
+    // 1. Dashboard Metrics
+    const totalStudents = currentList.length;
+    document.getElementById('stat-class-size').innerText = totalStudents;
+
+    let validScores = currentList.map(st => Number(st.dtb)).filter(v => !isNaN(v) && v > 0);
+    let avgScore = validScores.length > 0 ? (validScores.reduce((a,b)=>a+b, 0) / validScores.length).toFixed(1) : "0.0";
+    document.getElementById('stat-class-avg').innerText = avgScore;
+
+    let goodCount = validScores.filter(sc => sc >= 8.0).length;
+    let goodRate = totalStudents > 0 ? Math.round((goodCount / totalStudents) * 100) : 0;
+    document.getElementById('stat-good-rate').innerText = `${goodRate}%`;
+    document.getElementById('stat-tx-count').innerText = `${s.txColumns || 4} cột`;
+
+    // Phân bố kết quả
+    let cXuatSac = validScores.filter(sc => sc >= 9.0).length;
+    let cTot = validScores.filter(sc => sc >= 8.0 && sc < 9.0).length;
+    let cKha = validScores.filter(sc => sc >= 6.5 && sc < 8.0).length;
+    let cCanCoGang = validScores.filter(sc => sc < 6.5).length;
+
+    document.getElementById('count-xuat-sac').innerText = cXuatSac;
+    document.getElementById('count-tot').innerText = cTot;
+    document.getElementById('count-kha').innerText = cKha;
+    document.getElementById('count-can-co-gang').innerText = cCanCoGang;
+
+    if (totalStudents > 0) {
+        document.getElementById('bar-xuat-sac').style.width = `${(cXuatSac/totalStudents)*100}%`;
+        document.getElementById('bar-tot').style.width = `${(cTot/totalStudents)*100}%`;
+        document.getElementById('bar-kha').style.width = `${(cKha/totalStudents)*100}%`;
+        document.getElementById('bar-can-co-gang').style.width = `${(cCanCoGang/totalStudents)*100}%`;
     }
 
-    let data = getTuitionData(cid);
-    let tongDuThu = 0, tongDaThu = 0, tongConNo = 0;
-
-    data.forEach(d => {
-        tongDuThu += d.finalAmount;
-        if(d.isPaid) tongDaThu += d.finalAmount; else tongConNo += d.finalAmount;
-
-        let statusBtn = d.isPaid 
-            ? `<button class="t-badge paid" onclick="toggleTuition(${d.stu.id}, ${d.cls.id}, ${d.cycleNum}, ${d.finalAmount})">✔ Đã nộp</button>`
-            : `<button class="t-badge unpaid" onclick="toggleTuition(${d.stu.id}, ${d.cls.id}, ${d.cycleNum}, ${d.finalAmount})">❌ Chưa nộp</button>`;
-
-        if(list) {
-            list.innerHTML += `
-                <div class="tuition-card" style="margin-bottom: 10px;">
-                    <div style="flex:1;">
-                        <h4 style="font-size:1.05rem; color:var(--text-main); font-weight:800; margin-bottom:4px;">${d.stu.name}</h4>
-                        <p class="text-sm text-muted">Kỳ ${d.cycleNum} (${d.cycleSessions} buổi)</p>
-                        ${d.discountCount > 0 ? `<p class="text-sm text-red">Trừ ${d.discountCount} buổi phép: -${d.discountFee.toLocaleString()}đ</p>` : ''}
-                    </div>
-                    <div style="text-align:right;">
-                        <h3 class="text-primary" style="font-size:1.15rem; color:#2563eb; font-weight:800; margin-bottom:6px;">${d.finalAmount.toLocaleString()}đ</h3>
-                        ${statusBtn}
-                        <div style="display:flex; gap:5px; margin-top:8px; justify-content:flex-end;">
-                            <button class="btn-sm text-blue btn-outline-action" onclick="window.open('${d.qrLink}')" title="Mã QR"><i class="fas fa-qrcode"></i></button>
-                            <button class="btn-sm text-green btn-outline-action" onclick="remindZalo('${d.stu.name}', '${d.ckContent}', ${d.finalAmount}, '${d.stu.phone || ''}')" title="Nhắc Zalo"><i class="fas fa-comment-dots"></i></button>
+    // Danh sách cần chú ý
+    const attList = document.getElementById('attention-student-list');
+    attList.innerHTML = '';
+    let attentionStudents = currentList.filter(st => {
+        let isLowScore = (Number(st.dtb) > 0 && Number(st.dtb) < 6.5);
+        let isCD = (typeof st.dtb === 'string' && st.dtb.toUpperCase() === 'CĐ');
+        return isLowScore || isCD || (st.violationCount > 0);
+    });
+    
+    if (attentionStudents.length === 0) {
+        attList.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 15px;">Lớp đang học tập rất tốt! 🎉</div>`;
+    } else {
+        attentionStudents.slice(0, 5).forEach(st => {
+            let initials = st.name.split(' ').map(n=>n[0]).slice(-2).join('').toUpperCase();
+            let isDanger = (Number(st.dtb) > 0 && Number(st.dtb) < 5.0) || (typeof st.dtb === 'string' && st.dtb.toUpperCase() === 'CĐ');
+            let scoreClass = isDanger ? 'danger' : 'warn';
+            attList.innerHTML += `
+                <div class="attention-item" onclick="openStudentProfile(${st.id})">
+                    <div class="att-left">
+                        <div class="avatar-circle-sm">${initials}</div>
+                        <div class="att-info">
+                            <strong>${st.name}</strong>
+                            <span>${st.violationCount || 0} lần vi phạm • ${st.callCount || 0} lần gọi</span>
                         </div>
                     </div>
-                </div>`;
-        }
-    });
-
-    const elDuThu = document.getElementById('t-du-thu'); if(elDuThu) elDuThu.innerText = tongDuThu.toLocaleString() + 'đ';
-    const elDaThu = document.getElementById('t-da-thu'); if(elDaThu) elDaThu.innerText = tongDaThu.toLocaleString() + 'đ';
-    const elConNo = document.getElementById('t-con-no'); if(elConNo) elConNo.innerText = tongConNo.toLocaleString() + 'đ';
-
-    // Lịch sử thu tiền
-    const histList = document.getElementById('tuition-history-list');
-    if (histList) {
-        histList.innerHTML = '';
-        let sortedTuitions = [...db.tuitions].sort((a, b) => b.id - a.id).slice(0, 30); 
-        if(sortedTuitions.length === 0) {
-            histList.innerHTML = '<div class="text-center text-muted" style="padding:20px;">Chưa có lịch sử thu tiền.</div>';
-        } else {
-            sortedTuitions.forEach(t => {
-                let stu = db.students.find(s => s.id == t.studentId);
-                let cls = stu ? db.classes.find(c => c.id == stu.classId) : null;
-                histList.innerHTML += `
-                    <div class="list-item">
-                        <div class="list-item-info">
-                            <strong style="color:var(--success); font-size:1.1rem;">+ ${t.amount.toLocaleString()}đ</strong>
-                            <small style="color:var(--text-main); font-weight:700;">${stu ? stu.name : 'HS đã xóa'} (${cls ? cls.name : 'Lớp xóa'})</small>
-                            <small class="text-muted">${parseDateVi(t.date)} • Đóng cho Kỳ ${t.cycleNumber || 1}</small>
-                        </div>
-                        <button class="btn-outline-action text-red" title="Hủy giao dịch" onclick="deleteTuition(${t.id})"><i class="fas fa-trash"></i></button>
-                    </div>`;
-            });
-        }
-    }
-}
-
-function toggleTuition(stuId, classId, cycleNum, amount) {
-    let exist = db.tuitions.find(t => t.studentId == stuId && t.cycleNumber === cycleNum);
-    if(exist) {
-        db.tuitions = db.tuitions.filter(t => t.id !== exist.id);
-        showToast("Đã chuyển về Chưa nộp!");
-    } else {
-        db.tuitions.push({ id: Date.now(), studentId: stuId, classId: classId, cycleNumber: cycleNum, amount: amount, date: getTodayStr() });
-        showToast("✅ Đã ghi nhận thu tiền thành công!");
-    }
-    saveData(); 
-    renderTuition();
-}
-
-function deleteTuition(id) {
-    if(confirm("Hủy bỏ giao dịch thu tiền này?")) {
-        db.tuitions = db.tuitions.filter(t => t.id != id); saveData(); renderTuition(); showToast("Đã hủy giao dịch!");
-    }
-}
-
-function remindZalo(name, ck, amount, phone) {
-    let msg = `[THÔNG BÁO] Trung tâm gửi thông tin học phí kỳ tới của học sinh ${name}.\n💰 Số tiền cần đóng: ${amount.toLocaleString()}đ.\n📌 Cú pháp chuyển khoản: ${ck}\nKính mong Phụ huynh kiểm tra và hoàn thành sớm. Xin cảm ơn!`;
-    navigator.clipboard.writeText(msg).then(() => {
-        if (phone && phone.trim() !== '') {
-            window.open(`https://zalo.me/${phone}`, '_blank');
-            showToast("✅ Đã copy và mở Zalo để gửi!");
-        } else {
-            showToast("✅ Đã copy! (Học sinh chưa có SĐT để mở Zalo)");
-        }
-    });
-}
-
-function copyClassNotice() {
-    let cid = document.getElementById('tuition-class-select').value; 
-    let cls = db.classes.find(c=>c.id==cid);
-    if(!cls) return showToast("Chưa chọn nhóm lớp!", "error");
-
-    let data = getTuitionData(cid);
-    let thangHienTai = new Date().getMonth() + 1;
-    
-    let msg = `📢 BẢNG HỌC PHÍ THÁNG ${thangHienTai} - LỚP ${cls.name}\n(Đã tự động khấu trừ các buổi nghỉ có phép kỳ trước):\n\n`;
-    data.forEach(d => { 
-        if (d.discountCount > 0) {
-            msg += `- ${d.stu.name}: ${d.finalAmount.toLocaleString()}đ (Trừ ${d.discountCount} phép)\n`; 
-        } else {
-            msg += `- ${d.stu.name}: ${d.finalAmount.toLocaleString()}đ\n`; 
-        }
-    });
-    
-    let bankId = (db.settings && db.settings.bankId) ? db.settings.bankId : 'MB';
-    let bankAcc = (db.settings && db.settings.bankAcc) ? db.settings.bankAcc : '123456789';
-    
-    msg += `\n💳 THÔNG TIN CHUYỂN KHOẢN:\n`;
-    msg += `- Ngân hàng: ${bankId}\n`;
-    msg += `- Số tài khoản: ${bankAcc}\n`;
-    msg += `📌 Cú pháp: HP [Mã HS] (Hoặc quét Mã QR ở ảnh bên dưới)\n\n`;
-    msg += `(Trân trọng cảm ơn Quý phụ huynh!)`;
-    
-    navigator.clipboard.writeText(msg).then(() => {
-        showToast("✅ Đã copy thông báo. Dán (Paste) vào Nhóm Zalo nhé!");
-    });
-}
-
-function showClassQRList() {
-    let cid = document.getElementById('tuition-class-select').value;
-    if(!cid) return showToast("Chưa chọn nhóm lớp!", "error");
-    
-    let data = getTuitionData(cid).filter(d => !d.isPaid);
-    let grid = document.getElementById('qr-grid-container'); if(!grid) return;
-    grid.innerHTML = '';
-    
-    if(data.length === 0) {
-        grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:30px; color:#64748b;">Tất cả học sinh trong nhóm đã nộp học phí!</div>';
-    } else {
-        data.forEach(d => {
-            grid.innerHTML += `
-                <div style="background:white; border-radius:12px; padding:10px; text-align:center; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                    <b style="font-size:0.9rem; color:#1e3a8a; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${d.stu.name}</b>
-                    <p style="font-size:0.85rem; color:#ef4444; font-weight:bold; margin:4px 0;">${d.finalAmount.toLocaleString()}đ</p>
-                    <img src="${d.qrLink}" style="width:100%; border-radius:8px; border:1px solid #f1f5f9;">
-                </div>`;
-        });
-    }
-    openModal('modal-qr-list');
-}
-
-// ================= QUẢN LÝ LỚP HỌC =================
-function openAddStudentForClass(cid) { document.getElementById('stu-id').value = ''; document.getElementById('stu-name').value = ''; document.getElementById('stu-phone').value = ''; document.getElementById('stu-custom-fee').value = ''; document.getElementById('stu-start').value = getTodayStr(); document.getElementById('stu-class').value = cid; openModal('modal-add-student'); }
-
-function renderClasses() {
-    const list = document.getElementById('class-list'); list.innerHTML = '';
-    
-    const searchInput = document.getElementById('search-class');
-    const filterText = searchInput ? searchInput.value.toLowerCase() : "";
-    
-    let filteredClasses = db.classes.filter(c => c.name.toLowerCase().includes(filterText));
-    
-    if(filteredClasses.length === 0) {
-        list.innerHTML = '<div class="text-center text-muted" style="padding:20px;">Không tìm thấy nhóm lớp nào!</div>';
-    }
-    
-    filteredClasses.forEach(c => {
-        let stuCount = db.students.filter(s => s.classId == c.id).length; let tkbText = c.tkb.map(t => `T${t.dayOfWeek}(${t.start})`).join(', ');
-        let classSessions = db.sessions.filter(x => x.classId == c.id && x.status !== 'canceled').sort((a,b) => { let d1 = new Date(a.date).getTime(), d2 = new Date(b.date).getTime(); if(d1 !== d2) return d1 - d2; return String(a.start||"").localeCompare(String(b.start||"")); });
-        let completedCount = classSessions.filter(s => s.status === 'completed').length; let cycle = parseInt(c.cycle) || 10; let nextTargetIndex = Math.floor(completedCount / cycle) * cycle + cycle; 
-        
-        let nextDateText = "Chưa xác định";
-        if(classSessions.length >= nextTargetIndex) { let nextSess = classSessions[nextTargetIndex - 1]; if(nextSess) nextDateText = parseDateVi(nextSess.date); } else if (classSessions.length > 0) { nextDateText = "Đang lên lịch..."; }
-
-        list.innerHTML += `<div class="sched-card" style="border-left-color: var(--primary);"><div class="sched-info"><h4 style="margin-bottom:6px;">${c.name}</h4><p class="text-sm">Học phí: ${parseInt(c.fee).toLocaleString()}đ/b • Lịch: ${tkbText || 'Chưa xếp'}</p><div style="margin-top:12px; padding:10px 12px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0;"><div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.85rem; font-weight:700;"><span style="color:var(--text-main);">Đã dạy: <b class="text-blue">${completedCount}</b> buổi</span><span class="text-muted">Mốc thu: ${cycle}b</span></div><div style="font-size:0.8rem; color:#b45309; font-weight:600; display:flex; align-items:center; gap:6px;"><i class="fas fa-bolt"></i> Dự kiến thu (Buổi ${nextTargetIndex}): ${nextDateText}</div></div></div><div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:12px; margin-top:12px;"><span class="text-sm" style="font-weight:700;"><i class="fas fa-users text-blue"></i> ${stuCount} học sinh</span><div style="display:flex; gap:8px;"><button class="btn-outline-action text-green" onclick="openAddStudentForClass(${c.id})" title="Thêm học sinh"><i class="fas fa-user-plus"></i></button><button class="btn-outline-action text-orange" onclick="editClass(${c.id})" title="Sửa nhóm"><i class="fas fa-pen"></i></button><button class="btn-outline-action text-red" onclick="deleteClass(${c.id})" title="Xóa nhóm"><i class="fas fa-trash"></i></button></div></div></div>`;
-    });
-    populateClassSelects();
-}
-
-function deleteClass(id) { if(confirm("CẢNH BÁO ĐỎ: Xóa nhóm lớp sẽ XÓA VĨNH VIỄN toàn bộ dữ liệu của lớp này. Bạn chắc chắn chứ?")) { db.classes = db.classes.filter(c => c.id != id); saveData(); renderClasses(); showToast("Đã xóa nhóm lớp!"); } }
-function addTkbRow(day=2, start='18:00', end='20:00') { const div = document.createElement('div'); div.className = 'form-row tkb-row mb-15'; div.style.alignItems = 'center'; div.innerHTML = `<select class="tkb-day" style="flex: 1; padding: 12px 5px; text-align: center; min-width: 60px;"><option value="2">T2</option><option value="3">T3</option><option value="4">T4</option><option value="5">T5</option><option value="6">T6</option><option value="7">T7</option><option value="8">CN</option></select><input type="time" class="tkb-start" value="${start}" style="flex: 1.2; padding: 12px 5px; text-align: center;"><input type="time" class="tkb-end" value="${end}" style="flex: 1.2; padding: 12px 5px; text-align: center;"><button class="btn-outline-action text-red" style="flex-shrink: 0; width: 44px; height: 44px; padding: 0;" onclick="this.parentElement.remove()"><i class="fas fa-trash"></i></button>`; div.querySelector('.tkb-day').value = day; document.getElementById('tkb-container').appendChild(div); }
-function saveClass() { let id = document.getElementById('class-id').value; let name = document.getElementById('cl-name').value; let fee = document.getElementById('cl-fee').value; let cycle = document.getElementById('cl-cycle').value; let start = document.getElementById('cl-start').value; if(!name || !start) return showToast("Nhập đủ thông tin!", "error"); let tkb = []; document.querySelectorAll('.tkb-row').forEach(row => { tkb.push({ dayOfWeek: parseInt(row.querySelector('.tkb-day').value), start: row.querySelector('.tkb-start').value, end: row.querySelector('.tkb-end').value }); }); let obj = { id: id ? parseInt(id) : Date.now(), name, fee, cycle, startDate: start, tkb }; if(id) db.classes[db.classes.findIndex(c => c.id == id)] = obj; else db.classes.push(obj); saveData(); closeModal('modal-add-class'); renderClasses(); generateSchedules(); showToast("Đã lưu Nhóm!"); }
-function editClass(id) { let c = db.classes.find(x => x.id == id); if(!c) return; document.getElementById('class-id').value = c.id; document.getElementById('cl-name').value = c.name; document.getElementById('cl-fee').value = c.fee; document.getElementById('cl-cycle').value = c.cycle; document.getElementById('cl-start').value = c.startDate; document.getElementById('tkb-container').innerHTML = ''; c.tkb.forEach(t => addTkbRow(t.dayOfWeek, t.start, t.end)); openModal('modal-add-class'); }
-
-function populateClassSelects() {
-    let html = '<option value="">-- Tất cả nhóm --</option>'; let htmlForm = ''; let htmlHol = '<option value="ALL">Tất cả nhóm lớp</option>';
-    db.classes.forEach(c => { html += `<option value="${c.id}">${c.name}</option>`; htmlForm += `<option value="${c.id}">${c.name}</option>`; htmlHol += `<option value="${c.id}">${c.name}</option>`;});
-    const filters = document.getElementById('filter-class-stu'); if(filters) filters.innerHTML = html;
-    const formClass = document.getElementById('stu-class'); if(formClass) formClass.innerHTML = htmlForm;
-    const formImp = document.getElementById('import-class-select'); if(formImp) formImp.innerHTML = htmlForm;
-    const formHol = document.getElementById('hol-class'); if(formHol) formHol.innerHTML = htmlHol;
-    const formMakeup = document.getElementById('makeup-class'); if(formMakeup) formMakeup.innerHTML = htmlForm;
-    const formTuit = document.getElementById('tuition-class-select'); if(formTuit && formTuit.options.length === 0) formTuit.innerHTML = htmlForm;
-}
-
-// ================= QUẢN LÝ HỌC SINH =================
-function renderStudents() { 
-    const list = document.getElementById('student-list'); 
-    list.innerHTML = ''; 
-    let txt = document.getElementById('search-student').value.toLowerCase(); 
-    let cid = document.getElementById('filter-class-stu').value; 
-    let filtered = db.students.filter(s => s.name.toLowerCase().includes(txt) && (cid === '' || s.classId == cid)); 
-    
-    filtered.forEach(s => { 
-        let cls = db.classes.find(c => c.id == s.classId); 
-        list.innerHTML += `<div class="list-item">
-            <div class="list-item-info">
-                <strong>${s.name}</strong>
-                <small>${cls ? cls.name : 'Lớp đã xóa'} • ${s.phone || 'Không có SĐT'}</small>
-            </div>
-            <div style="display:flex; gap:8px;">
-                <button class="btn-outline-action text-orange" onclick="editStudent(${s.id})" title="Sửa học sinh"><i class="fas fa-pen"></i></button>
-                <button class="btn-outline-action text-red" onclick="deleteStudent(${s.id})" title="Xóa học sinh"><i class="fas fa-trash"></i></button>
-            </div>
-        </div>`; 
-    }); 
-}
-
-function saveStudent() { 
-    let id = document.getElementById('stu-id').value;
-    let cid = document.getElementById('stu-class').value; 
-    let name = document.getElementById('stu-name').value; 
-    if(!cid || !name) return showToast("Nhập đủ tên và chọn lớp!", "error"); 
-    
-    let obj = { 
-        id: id ? parseInt(id) : Date.now(), 
-        classId: parseInt(cid), 
-        name: name, 
-        phone: document.getElementById('stu-phone').value, 
-        customFee: document.getElementById('stu-custom-fee').value, 
-        startDate: document.getElementById('stu-start').value || getTodayStr() 
-    };
-
-    if(id) {
-        let idx = db.students.findIndex(s => s.id == id);
-        if(idx > -1) db.students[idx] = obj;
-    } else {
-        db.students.push(obj); 
-    }
-
-    saveData(); 
-    closeModal('modal-add-student'); 
-    renderStudents(); 
-    showToast(id ? "Đã cập nhật học sinh!" : "Đã thêm học sinh!"); 
-}
-
-function editStudent(id) {
-    let s = db.students.find(x => x.id == id);
-    if(!s) return;
-    document.getElementById('stu-id').value = s.id;
-    document.getElementById('stu-class').value = s.classId;
-    document.getElementById('stu-name').value = s.name;
-    document.getElementById('stu-phone').value = s.phone || '';
-    document.getElementById('stu-custom-fee').value = s.customFee || '';
-    document.getElementById('stu-start').value = s.startDate || getTodayStr();
-    openModal('modal-add-student');
-}
-
-function deleteStudent(id) { if(confirm("Xóa học sinh này?")) { db.students = db.students.filter(s => s.id != id); saveData(); renderStudents(); } }
-
-// ================= LỊCH NGHỈ =================
-function renderHolidays() {
-    const list = document.getElementById('holiday-list'); list.innerHTML = '';
-    db.holidays.forEach(h => {
-        let target = h.classId === 'ALL' ? 'Tất cả nhóm' : (db.classes.find(c=>c.id==h.classId)?.name || 'Lớp');
-        list.innerHTML += `<div class="list-item"><div class="list-item-info"><strong>🎉 ${h.name}</strong><small>${parseDateVi(h.start)} - ${parseDateVi(h.end)} • Áp dụng: ${target}</small></div><div style="display:flex; gap:8px;"><button class="btn-outline-action text-orange" onclick="editHoliday(${h.id})"><i class="fas fa-pen"></i></button><button class="btn-outline-action text-red" onclick="deleteHoliday(${h.id})"><i class="fas fa-trash"></i></button></div></div>`;
-    });
-}
-function openAddHoliday() { document.getElementById('hol-id').value = ''; document.getElementById('hol-name').value = ''; document.getElementById('hol-start').value = ''; document.getElementById('hol-end').value = ''; document.getElementById('hol-class').value = 'ALL'; openModal('modal-add-holiday'); }
-function editHoliday(id) { let h = db.holidays.find(x => x.id == id); if(!h) return; document.getElementById('hol-id').value = h.id; document.getElementById('hol-name').value = h.name; document.getElementById('hol-start').value = h.start; document.getElementById('hol-end').value = h.end; document.getElementById('hol-class').value = h.classId; openModal('modal-add-holiday'); }
-function saveHoliday() {
-    let id = document.getElementById('hol-id').value; let name = document.getElementById('hol-name').value, start = document.getElementById('hol-start').value, end = document.getElementById('hol-end').value; let cid = document.getElementById('hol-class').value; if(!name || !start || !end) return showToast("Nhập đủ thông tin!", "error");
-    if(id) { let index = db.holidays.findIndex(h => h.id == id); if(index > -1) db.holidays[index] = { id: parseInt(id), name, start, end, classId: cid }; } else { db.holidays.push({ id: Date.now(), name, start, end, classId: cid }); }
-    saveData(); generateSchedules(); closeModal('modal-add-holiday'); if(document.getElementById('view-calendar').classList.contains('active')) renderHolidays(); showToast("Đã lưu lịch nghỉ & Cập nhật Lịch học!");
-}
-function deleteHoliday(id) { if(confirm("Xóa lịch nghỉ?")) { db.holidays = db.holidays.filter(h => h.id != id); saveData(); generateSchedules(); renderHolidays(); } }
-
-// ================= SAO LƯU & KHÔI PHỤC =================
-function backupData() {
-    let dataStr = JSON.stringify(db); let blob = new Blob([dataStr], {type: "application/json"}); let url = URL.createObjectURL(blob); let a = document.createElement('a'); a.href = url; let date = new Date().toISOString().split('T')[0]; a.download = `DuLieuDayThem_${date}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showToast("Đã tải bản sao lưu (File .json) xuống máy!");
-}
-function restoreData(event) {
-    let file = event.target.files[0]; if(!file) return; let reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            let parsed = JSON.parse(e.target.result);
-            if(parsed.classes && parsed.students) { 
-                if(confirm("CẢNH BÁO: Dữ liệu hiện tại trên trình duyệt sẽ bị GHI ĐÈ hoàn toàn bởi dữ liệu từ file này. Bạn có chắc chắn muốn khôi phục?")) { db = parsed; saveData(); closeModal('modal-settings'); alert("Khôi phục thành công! Nhấn OK để tải lại ứng dụng."); location.reload(); }
-            } else { showToast("File khôi phục không hợp lệ!", "error"); }
-        } catch(err) { showToast("Lỗi đọc file!", "error"); }
-    };
-    reader.readAsText(file); event.target.value = ''; 
-}
-
-// ================= IMPORT =================
-let parsedData = [];
-function openImportModal() { if(db.classes.length === 0) { showToast("Bạn cần TẠO NHÓM LỚP trước khi Import!", "error"); switchView('view-classes', document.querySelectorAll('.nav-item')[1]); return; } document.getElementById('import-step-1').classList.remove('hidden'); document.getElementById('import-step-2').classList.add('hidden'); document.getElementById('import-footer').classList.add('hidden'); openModal('modal-import'); }
-async function handleImportFile(event) { const file = event.target.files[0]; if(!file) return; const ext = file.name.split('.').pop().toLowerCase(); showLoading(true, "Đang trích xuất dữ liệu..."); parsedData = []; try { if(ext === 'xlsx' || ext === 'xls' || ext === 'csv') { await extractExcel(file); } else if (ext === 'docx') { await extractWord(file); } else if (ext === 'png' || ext === 'jpg' || ext === 'jpeg') { await extractImageOCR(file); } else { throw new Error("Định dạng không hỗ trợ!"); } } catch (e) { showToast(e.message || "Lỗi xử lý file!", "error"); } showLoading(false); event.target.value = ''; }
-async function extractExcel(file) { const data = await file.arrayBuffer(); const workbook = XLSX.read(data); parseTableToStudents(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1})); }
-async function extractWord(file) { const data = await file.arrayBuffer(); const result = await mammoth.extractRawText({arrayBuffer: data}); parseTableToStudents(result.value.split('\n').filter(l => l.trim().length > 0).map(l => l.split(/\t| {2,}/))); }
-async function extractImageOCR(file) { if(typeof Tesseract === 'undefined') throw new Error("Thư viện OCR chưa tải xong!"); showLoading(true, "AI đang quét ảnh. Vui lòng đợi 5-15s..."); const result = await Tesseract.recognize(file, 'vie'); parseTableToStudents(result.data.text.split('\n').filter(l => l.trim().length > 0).map(l => l.split(/ {2,}|\t/))); }
-
-function parseTableToStudents(rows) {
-    if(rows.length < 1) throw new Error("File trống hoặc không dạng bảng!"); let headerIdx = -1; for(let i=0; i<Math.min(5, rows.length); i++) { let text = rows[i].join(' ').toLowerCase(); if(text.includes('họ') || text.includes('tên') || text.includes('name')) { headerIdx = i; break; } } if(headerIdx === -1) headerIdx = 0; let headers = rows[headerIdx].map(h => String(h).toLowerCase().trim()); let nameCol = headers.findIndex(h => h.includes('tên') || h.includes('name')); let phoneCol = headers.findIndex(h => h.includes('sđt') || h.includes('thoại') || h.includes('phone')); let feeCol = headers.findIndex(h => h.includes('phí') || h.includes('tiền')); if(nameCol === -1) nameCol = 1; 
-    for(let i = headerIdx + 1; i < rows.length; i++) { let r = rows[i]; if(!r || r.length < nameCol+1) continue; let name = String(r[nameCol] || '').trim(); if(name.length < 2 || !isNaN(name) || name.toLowerCase().includes('tổng')) continue; parsedData.push({ name, phone: phoneCol !== -1 ? String(r[phoneCol] || '').replace(/[^0-9]/g,'') : '', customFee: feeCol !== -1 ? String(r[feeCol] || '').replace(/[^0-9]/g,'') : '' }); }
-    if(parsedData.length === 0) throw new Error("Không tìm thấy dữ liệu học sinh!"); document.getElementById('import-step-1').classList.add('hidden'); document.getElementById('import-step-2').classList.remove('hidden'); document.getElementById('import-footer').classList.remove('hidden'); let tb = document.getElementById('import-preview-body'); tb.innerHTML = ''; parsedData.forEach((s, i) => { tb.innerHTML += `<tr><td><input type="text" id="imp-name-${i}" value="${s.name}"></td><td><input type="text" id="imp-phone-${i}" value="${s.phone}"></td><td><input type="number" id="imp-fee-${i}" value="${s.customFee}" placeholder="Mặc định"></td></tr>`; });
-}
-
-function confirmImport() { let cid = document.getElementById('import-class-select').value; let count = 0; parsedData.forEach((s, i) => { let finalName = document.getElementById(`imp-name-${i}`).value.trim(); if(finalName) { db.students.push({ id: Date.now() + i, classId: parseInt(cid), name: finalName, phone: document.getElementById(`imp-phone-${i}`).value, customFee: document.getElementById(`imp-fee-${i}`).value, startDate: getTodayStr() }); count++; } }); saveData(); closeModal('modal-import'); renderStudents(); showToast(`🎉 Đã nhập ${count} học sinh!`); }
-
-// ================= THỐNG KÊ & BÁO CÁO =================
-function renderStatistics() {
-    let totalExpected = 0;
-    let totalCollected = 0;
-    
-    db.tuitions.forEach(t => totalCollected += t.amount);
-    
-    let classStats = {};
-    db.classes.forEach(c => {
-        classStats[c.id] = { name: c.name, expected: 0, collected: 0, stuCount: 0 };
-        let stus = db.students.filter(s => s.classId == c.id);
-        classStats[c.id].stuCount = stus.length;
-        
-        stus.forEach(stu => {
-            let fee = parseInt(stu.customFee) || parseInt(c.fee) || 0;
-            let attended = db.attendance.filter(a => a.studentId == stu.id && a.status === 'có mặt').length;
-            classStats[c.id].expected += (attended * fee);
-        });
-    });
-    
-    db.tuitions.forEach(t => {
-        if(classStats[t.classId]) {
-            classStats[t.classId].collected += t.amount;
-        }
-    });
-
-    totalExpected = Object.values(classStats).reduce((sum, cls) => sum + cls.expected, 0);
-
-    document.getElementById('stat-expected').innerText = totalExpected.toLocaleString() + 'đ';
-    document.getElementById('stat-collected').innerText = totalCollected.toLocaleString() + 'đ';
-
-    const list = document.getElementById('stat-class-list');
-    if(!list) return;
-    list.innerHTML = '';
-    
-    let sortedClasses = Object.values(classStats).sort((a,b) => b.expected - a.expected);
-    
-    if(sortedClasses.length === 0) {
-        list.innerHTML = '<div class="text-center text-muted" style="padding:20px;">Chưa có dữ liệu lớp học.</div>';
-    } else {
-        sortedClasses.forEach(cls => {
-            let percent = cls.expected > 0 ? Math.round((cls.collected / cls.expected) * 100) : 0;
-            if(percent > 100) percent = 100; 
-            
-            list.innerHTML += `
-                <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <strong style="font-size: 1.05rem; color: var(--text-main);">${cls.name} <span class="text-sm text-muted" style="font-weight:600;">(${cls.stuCount} HS)</span></strong>
-                        <strong class="text-green">+${cls.collected.toLocaleString()}đ</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted); font-weight:700;">
-                        <span>Kỳ vọng: ${cls.expected.toLocaleString()}đ</span>
-                        <span>Đạt: ${percent}%</span>
-                    </div>
-                    <div style="width: 100%; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
-                        <div style="height: 100%; width: ${percent}%; background: var(--success); transition: 0.5s;"></div>
-                    </div>
+                    <span class="score-pill ${scoreClass}">${st.dtb || '--'}</span>
                 </div>
             `;
         });
     }
-}
 
-// ================= GẮN HÀM VÀO WINDOW =================
-window.switchView = switchView;
-window.switchCalTab = switchCalTab;
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.saveData = saveData;
-window.updateDashboard = updateDashboard;
-window.renderClasses = renderClasses;
-window.renderStudents = renderStudents;
-window.deleteStudent = deleteStudent;
-window.saveStudent = saveStudent;
-window.editStudent = editStudent;
-window.editClass = editClass;
-window.deleteClass = deleteClass;
-window.saveClass = saveClass;
-window.generateSchedules = generateSchedules;
-window.addTkbRow = addTkbRow;
-window.backupData = backupData;
-window.restoreData = restoreData;
-window.openAddHoliday = openAddHoliday;
-window.openImportModal = openImportModal;
-window.handleImportFile = handleImportFile;
-window.confirmImport = confirmImport;
-window.editHoliday = editHoliday;
-window.deleteHoliday = deleteHoliday;
-window.saveHoliday = saveHoliday;
-window.deleteSession = deleteSession;
-window.saveMakeup = saveMakeup;
-window.deleteTuition = deleteTuition;
-window.openAttendance = openAttendance;
-window.setAtt = setAtt;
-window.submitAttendance = submitAttendance;
-window.openAddStudentForClass = openAddStudentForClass;
-window.renderStatistics = renderStatistics;
-window.saveBankSettings = saveBankSettings;
-window.renderTuition = renderTuition;
-window.toggleTuition = toggleTuition;
-window.remindZalo = remindZalo;
-window.copyClassNotice = copyClassNotice;
-window.showClassQRList = showClassQRList;
+    if(document.getElementById('stat-view-classname')) document.getElementById('stat-view-classname').innerText = displayClass;
+    if(document.getElementById('stat-view-subject')) document.getElementById('stat-view-subject').innerText = displaySubject;
+    if(document.getElementById('stat-view-year')) document.getElementById('stat-view-year').innerText = s.year;
+    if(document.getElementById('stat-total-stu')) document.getElementById('stat-total-stu').innerText = totalStudents;
+    if(document.getElementById('stat-avg-all')) document.getElementById('stat-avg-all').innerText = avgScore;
+    
+    let maxS = validScores.length > 0 ? Math.max(...validScores) : 0;
+    let minS = validScores.length > 0 ? Math.min(...validScores) : 0;
+    if(document.getElementById('stat-max-score')) document.getElementById('stat-max-score').innerText = maxS;
+    if(document.getElementById('stat-min-score')) document.getElementById('stat-min-score').innerText = minS;
+
+    window.renderStudentsView();
+    window.renderGradebookTable();
+    window.renderInClassView();
+
+    document.getElementById('set-teacher-name').value = s.teacherName || '';
+    document.getElementById('set-subject-name').value = s.subject || '';
+    document.getElementById('set-school-year').value = s.year || '';
+    document.getElementById('set-semester').value = s.semester || 'HK1';
+    window.renderCommentRulesSettings();
+};
+
+// ================= RENDER DANH SÁCH HỌC SINH =================
+window.renderStudentsView = function() {
+    const listEl = document.getElementById('students-card-list');
+    if(!listEl) return;
+    listEl.innerHTML = '';
+    const currentList = appData.classes[appData.settings.currentClass] || [];
+    const searchTxt = (document.getElementById('search-student-input')?.value || '').toLowerCase();
+
+    let filtered = currentList.filter(s => s.name.toLowerCase().includes(searchTxt));
+    if(filtered.length === 0) {
+        listEl.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 40px 20px;">Không tìm thấy học sinh nào.</div>`;
+        return;
+    }
+
+    filtered.forEach((st, idx) => {
+        let initials = st.name.split(' ').map(n=>n[0]).slice(-2).join('').toUpperCase();
+        
+        let evalBadge = 'good';
+        if (typeof st.dtb === 'string') {
+            let d = st.dtb.toUpperCase();
+            if (d === 'CĐ' || d === 'CHƯA ĐẠT') evalBadge = 'danger';
+            else if (d !== 'Đ' && d !== 'ĐẠT' && isNaN(Number(d))) evalBadge = 'warn'; 
+        } else {
+            let dtb = Number(st.dtb) || 0;
+            evalBadge = dtb >= 8 ? 'good' : (dtb >= 5 ? 'warn' : 'danger');
+        }
+        if (st.dtb === "" || st.dtb === null) evalBadge = 'warn'; 
+
+        listEl.innerHTML += `
+            <div class="stat-card-modern" style="cursor: pointer;" onclick="openStudentProfile(${st.id})">
+                <div class="avatar-circle-sm">${initials}</div>
+                <div style="flex: 1;">
+                    <strong style="font-size: 0.95rem; color: var(--text-main); display: block;">${idx + 1}. ${st.name}</strong>
+                    <small style="color: var(--text-muted);">${st.dob || 'Chưa có ngày sinh'} • Gọi: ${st.callCount || 0} • Lỗi: ${st.violationCount || 0}</small>
+                </div>
+                <span class="score-pill ${evalBadge}">${st.dtb || '--'}</span>
+            </div>
+        `;
+    });
+};
+
+// ================= HỒ SƠ HỌC SINH (MODAL PROFILE) =================
+let editingStudentId = null;
+window.openStudentProfile = function(id) {
+    editingStudentId = id;
+    const currentList = appData.classes[appData.settings.currentClass] || [];
+    const st = currentList.find(x => x.id === id);
+    if (!st) return;
+
+    const stt = currentList.findIndex(x => x.id === id) + 1;
+    let keyParts = appData.settings.currentClass.split(' - ');
+    let displayClass = keyParts.length > 1 ? keyParts[1] : appData.settings.currentClass;
+
+    document.getElementById('prof-student-id').value = st.id;
+    document.getElementById('prof-header-name').innerText = st.name;
+    document.getElementById('prof-name').value = st.name;
+    document.getElementById('prof-header-class').innerText = displayClass;
+    document.getElementById('prof-header-stt').innerText = stt;
+    document.getElementById('prof-header-dtb').innerText = st.dtb || '--';
+    document.getElementById('prof-avatar').innerText = st.name.split(' ').map(n=>n[0]).slice(-2).join('').toUpperCase();
+
+    document.getElementById('prof-calls').innerText = st.callCount || 0;
+    document.getElementById('prof-violations').innerText = st.violationCount || 0;
+
+    const txContainer = document.getElementById('prof-tx-container');
+    txContainer.innerHTML = '';
+    const numCols = appData.settings.txColumns || 4;
+    for(let i=0; i<numCols; i++) {
+        let val = st.tx && st.tx[i] !== undefined ? st.tx[i] : '';
+        txContainer.innerHTML += `
+            <div class="tx-box">
+                <span>TX${i+1}</span>
+                <input type="text" class="prof-tx-input" data-idx="${i}" value="${val}" oninput="recalcProfileScores()">
+            </div>
+        `;
+    }
+
+    document.getElementById('prof-gk').value = st.gk !== undefined ? st.gk : '';
+    document.getElementById('prof-ck').value = st.ck !== undefined ? st.ck : '';
+    document.getElementById('prof-dtb').value = st.dtb || '';
+    document.getElementById('prof-comment').value = st.comment || '';
+
+    window.recalcProfileScores();
+    window.openModal('modal-student-profile');
+};
+
+window.stepCounter = function(elementId, delta) {
+    const el = document.getElementById(elementId);
+    let val = Math.max(0, parseInt(el.innerText || 0) + delta);
+    el.innerText = val;
+};
+
+window.recalcProfileScores = function() {
+    let txInputs = document.querySelectorAll('.prof-tx-input');
+    let txArr = Array.from(txInputs).map(inp => inp.value);
+    let gk = document.getElementById('prof-gk').value;
+    let ck = document.getElementById('prof-ck').value;
+
+    let dtb = window.calculateDTB(txArr, gk, ck);
+    document.getElementById('prof-dtb').value = dtb;
+    document.getElementById('prof-header-dtb').innerText = dtb || '--';
+
+    let autoComment = window.getAutoComment(dtb);
+    if(autoComment) {
+        document.getElementById('prof-comment').value = autoComment;
+    }
+};
+
+window.saveStudentProfile = function() {
+    const currentList = appData.classes[appData.settings.currentClass] || [];
+    const st = currentList.find(x => x.id === editingStudentId);
+    if(!st) return;
+
+    st.name = document.getElementById('prof-name').value.trim();
+    st.callCount = parseInt(document.getElementById('prof-calls').innerText) || 0;
+    st.violationCount = parseInt(document.getElementById('prof-violations').innerText) || 0;
+
+    let txInputs = document.querySelectorAll('.prof-tx-input');
+    st.tx = Array.from(txInputs).map(inp => inp.value !== "" ? (isNaN(Number(inp.value)) ? inp.value : Number(inp.value)) : "");
+    st.gk = document.getElementById('prof-gk').value !== "" ? (isNaN(Number(document.getElementById('prof-gk').value)) ? document.getElementById('prof-gk').value : Number(document.getElementById('prof-gk').value)) : "";
+    st.ck = document.getElementById('prof-ck').value !== "" ? (isNaN(Number(document.getElementById('prof-ck').value)) ? document.getElementById('prof-ck').value : Number(document.getElementById('prof-ck').value)) : "";
+    st.dtb = document.getElementById('prof-dtb').value;
+    st.comment = document.getElementById('prof-comment').value.trim();
+
+    window.saveData();
+    window.closeModal('modal-student-profile');
+    window.showToast("✅ Đã lưu hồ sơ học sinh thành công!");
+};
+
+// ================= RENDER SỔ ĐIỂM (GRADEBOOK TABLE) =================
+window.renderGradebookTable = function() {
+    const tbody = document.getElementById('score-table-body');
+    const theadRow = document.getElementById('score-table-header');
+    if(!tbody || !theadRow) return;
+
+    const numTx = appData.settings.txColumns || 4;
+    let headerHtml = `<th>STT</th><th class="text-left">Họ và tên</th>`;
+    for(let i=1; i<=numTx; i++) headerHtml += `<th>TX${i}</th>`;
+    headerHtml += `<th>GK</th><th>CK</th><th>ĐTB</th><th class="text-left">Nhận xét</th>`;
+    theadRow.innerHTML = headerHtml;
+
+    tbody.innerHTML = '';
+    const currentList = appData.classes[appData.settings.currentClass] || [];
+
+    currentList.forEach((st, idx) => {
+        let tr = document.createElement('tr');
+        let txCells = '';
+        for(let i=0; i<numTx; i++) {
+            let val = (st.tx && st.tx[i] !== undefined) ? st.tx[i] : '';
+            txCells += `<td><input type="text" class="score-input" value="${val}" onchange="quickUpdateScore(${st.id}, 'tx', ${i}, this.value)"></td>`;
+        }
+
+        tr.innerHTML = `
+            <td>${idx + 1}</td>
+            <td class="text-left"><strong style="cursor:pointer; color:var(--primary);" onclick="openStudentProfile(${st.id})">${st.name}</strong></td>
+            ${txCells}
+            <td><input type="text" class="score-input" value="${st.gk !== undefined ? st.gk : ''}" onchange="quickUpdateScore(${st.id}, 'gk', 0, this.value)"></td>
+            <td><input type="text" class="score-input" value="${st.ck !== undefined ? st.ck : ''}" onchange="quickUpdateScore(${st.id}, 'ck', 0, this.value)"></td>
+            <td><strong style="color:var(--primary);">${st.dtb || '--'}</strong></td>
+            <td class="text-left"><input type="text" value="${st.comment || ''}" style="width:160px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-weight:600; font-size:0.8rem;" onchange="quickUpdateScore(${st.id}, 'comment', 0, this.value)"></td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+window.quickUpdateScore = function(studentId, field, txIdx, value) {
+    const currentList = appData.classes[appData.settings.currentClass] || [];
+    const st = currentList.find(x => x.id === studentId);
+    if(!st) return;
+
+    if (field === 'tx') {
+        if(!st.tx) st.tx = [];
+        st.tx[txIdx] = value.trim() !== "" ? (isNaN(Number(value)) ? value : Number(value)) : "";
+    } else if (field === 'gk') {
+        st.gk = value.trim() !== "" ? (isNaN(Number(value)) ? value : Number(value)) : "";
+    } else if (field === 'ck') {
+        st.ck = value.trim() !== "" ? (isNaN(Number(value)) ? value : Number(value)) : "";
+    } else if (field === 'comment') {
+        st.comment = value.trim();
+    }
+
+    st.dtb = window.calculateDTB(st.tx || [], st.gk, st.ck);
+    if (field !== 'comment') {
+        st.comment = window.getAutoComment(st.dtb);
+    }
+
+    window.saveData();
+};
+
+window.addNewTxColumn = function() {
+    appData.settings.txColumns = (appData.settings.txColumns || 4) + 1;
+    window.saveData();
+    window.showToast(`Đã thêm cột TX${appData.settings.txColumns}!`);
+};
+
+// ================= ĐỒNG BỘ & XUẤT FILE EDU =================
+window.triggerEduImport = function() {
+    document.getElementById('edu-import-input').click();
+};
+
+window.handleEduImportFile = function(event) {
+    const file = event.target.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            let totalImportedCount = 0;
+
+            workbook.SheetNames.forEach(sheetName => {
+                const sheet = workbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                if(rows.length < 7) return;
+
+                let targetClass = "CHUNG";
+                let classRowStr = (rows[3] || []).join(' ');
+                let classMatch = classRowStr.match(/Lớp\s*([0-9]+[A-Za-z0-9]*)/i);
+                if (classMatch && classMatch[1]) {
+                    targetClass = classMatch[1].toUpperCase();
+                } else if (sheetName.includes('_')) {
+                    let parts = sheetName.split('_');
+                    targetClass = parts[parts.length - 1].toUpperCase();
+                }
+
+                let targetSubject = appData.settings.subject.toUpperCase();
+                let subjectRowStr = (rows[2] || []).join(' ');
+                let subjectMatch = subjectRowStr.match(/MÔN\s+([^-]+)\s+-/i);
+                if (subjectMatch && subjectMatch[1]) {
+                    targetSubject = subjectMatch[1].trim().toUpperCase();
+                }
+
+                let listKey = `${targetSubject} - ${targetClass}`;
+
+                if (!appData.classes[listKey]) appData.classes[listKey] = [];
+                let classList = appData.classes[listKey];
+
+                for (let r = 7; r < rows.length; r++) {
+                    let row = rows[r];
+                    let stt = row[0];
+                    if (!stt || isNaN(parseInt(stt))) continue;
+
+                    let maHs = String(row[1]).trim();
+                    let hoDem = String(row[2]).trim();
+                    let ten = String(row[3]).trim();
+                    let fullName = `${hoDem} ${ten}`.trim();
+                    let dob = String(row[4]).trim();
+
+                    let tx1 = row[5], tx2 = row[6], tx3 = row[7], tx4 = row[8];
+                    let gk = row[9], ck = row[10], dtb = row[11], comment = String(row[12]).trim();
+
+                    let existing = classList.find(x => x.maHs === maHs || (maHs && x.maHs == maHs));
+                    if (existing) {
+                        existing.hoDem = hoDem; existing.ten = ten; existing.name = fullName; existing.dob = dob;
+                        existing.tx = [tx1, tx2, tx3, tx4].filter(x => x !== "");
+                        existing.gk = gk; existing.ck = ck; existing.dtb = dtb;
+                        existing.comment = comment || window.getAutoComment(dtb);
+                    } else {
+                        classList.push({
+                            id: Date.now() + Math.random(),
+                            maHs: maHs,
+                            hoDem: hoDem,
+                            ten: ten,
+                            name: fullName,
+                            dob: dob,
+                            gender: "Nam",
+                            tx: [tx1, tx2, tx3, tx4].filter(x => x !== ""),
+                            gk: gk,
+                            ck: ck,
+                            dtb: dtb,
+                            comment: comment || window.getAutoComment(dtb),
+                            callCount: 0,
+                            violationCount: 0
+                        });
+                    }
+                    totalImportedCount++;
+                }
+            });
+
+            window.renderClassSelector();
+            
+            if (!appData.classes[appData.settings.currentClass]) {
+                 appData.settings.currentClass = Object.keys(appData.classes)[0];
+                 document.getElementById('global-class-select').value = appData.settings.currentClass;
+            }
+
+            window.saveData();
+            window.showToast(`🎉 Đồng bộ EDU thành công ${totalImportedCount} học sinh!`);
+        } catch (error) {
+            console.error(error);
+            window.showToast("Lỗi cấu trúc file EDU!", "error");
+        }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = "";
+};
+
+window.exportEduFile = function() {
+    const s = appData.settings;
+    const currentList = appData.classes[s.currentClass] || [];
+    if(currentList.length === 0) return window.showToast("Lớp chưa có dữ liệu!", "error");
+
+    let keyParts = s.currentClass.split(' - ');
+    let expSubject = keyParts.length > 1 ? keyParts[0] : s.subject.toUpperCase();
+    let expClass = keyParts.length > 1 ? keyParts[1] : s.currentClass;
+
+    let ws_data = [
+        ["ỦY BAN NHÂN DÂN PHƯỜNG TĨNH GIA"],
+        ["TRƯỜNG TH & THCS LƯƠNG CHÍ"],
+        [`BẢNG ĐIỂM CHI TIẾT - MÔN ${expSubject} - ${s.semester.toUpperCase()} - NĂM HỌC ${s.year}`],
+        [`Khối ${expClass.replace(/[^0-9]/g, '')} - Lớp ${expClass}`],
+        [],
+        ["STT", "Mã học sinh", "Họ và tên", "", "Ngày sinh", "ĐĐGtx", "", "", "ĐĐGtx", "ĐĐGgk", "ĐĐGck", "ĐTB \nmhk", "Nhận xét"],
+        ["", "", "", "", "", "TX1", "TX2", "TX3", "TX4", "GK1", "CK1", "", ""]
+    ];
+
+    currentList.forEach((st, idx) => {
+        let tx = st.tx || [];
+        ws_data.push([
+            idx + 1,
+            st.maHs || "",
+            st.hoDem || st.name.split(' ').slice(0, -1).join(' '),
+            st.ten || st.name.split(' ').pop(),
+            st.dob || "",
+            tx[0] !== undefined ? tx[0] : "",
+            tx[1] !== undefined ? tx[1] : "",
+            tx[2] !== undefined ? tx[2] : "",
+            tx[3] !== undefined ? tx[3] : "",
+            st.gk !== undefined ? st.gk : "",
+            st.ck !== undefined ? st.ck : "",
+            st.dtb !== undefined ? st.dtb : "",
+            st.comment || ""
+        ]);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    XLSX.utils.book_append_sheet(wb, ws, `so_diem_${expClass}`);
+    XLSX.writeFile(wb, `So_Diem_${expSubject}_${expClass}.xlsx`);
+    window.showToast("✅ Đã xuất File EDU thành công!");
+};
+
+// ================= TRONG TIẾT =================
+let lastPickedStudent = null;
+window.pickRandomStudent = function() {
+    const currentList = appData.classes[appData.settings.currentClass] || [];
+    if(currentList.length === 0) return window.showToast("Lớp trống!", "error");
+
+    const display = document.getElementById('random-picker-display');
+    let count = 0;
+    let interval = setInterval(() => {
+        let randomStu = currentList[Math.floor(Math.random() * currentList.length)];
+        display.innerText = randomStu.name;
+        count++;
+        if(count > 15) {
+            clearInterval(interval);
+            lastPickedStudent = randomStu;
+            document.getElementById('btn-plus-call').style.display = 'inline-flex';
+        }
+    }, 80);
+};
+
+window.confirmAddCall = function() {
+    if(!lastPickedStudent) return;
+    lastPickedStudent.callCount = (lastPickedStudent.callCount || 0) + 1;
+    window.saveData();
+    document.getElementById('btn-plus-call').style.display = 'none';
+    window.showToast(`Đã +1 lần gọi cho em ${lastPickedStudent.name}!`);
+};
+
+window.renderInClassView = function() {
+    const listEl = document.getElementById('in-class-student-list');
+    if(!listEl) return;
+    listEl.innerHTML = '';
+    const currentList = appData.classes[appData.settings.currentClass] || [];
+
+    currentList.forEach(st => {
+        listEl.innerHTML += `
+            <div class="attention-item">
+                <div>
+                    <strong>${st.name}</strong>
+                    <small style="color:var(--text-muted); display:block;">Gọi: ${st.callCount || 0} • Vi phạm: ${st.violationCount || 0}</small>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-outline" style="padding: 6px 10px; color: var(--success);" onclick="quickAddPlusPoint(${st.id})">+1 Điểm tốt</button>
+                    <button class="btn-outline" style="padding: 6px 10px; color: var(--danger);" onclick="quickAddViolation(${st.id})">+1 Vi phạm</button>
+                </div>
+            </div>
+        `;
+    });
+};
+
+window.quickAddViolation = function(id) {
+    const currentList = appData.classes[appData.settings.currentClass] || [];
+    const st = currentList.find(x => x.id === id);
+    if(st) {
+        st.violationCount = (st.violationCount || 0) + 1;
+        window.saveData();
+        window.showToast(`Đã ghi nhận 1 vi phạm cho em ${st.name}`);
+    }
+};
+
+window.quickAddPlusPoint = function(id) {
+    const currentList = appData.classes[appData.settings.currentClass] || [];
+    const st = currentList.find(x => x.id === id);
+    if(st) {
+        st.callCount = (st.callCount || 0) + 1;
+        window.saveData();
+        window.showToast(`Đã ghi nhận phát biểu cho em ${st.name}`);
+    }
+};
+
+// ================= CÀI ĐẶT & BẢO TRÌ DỮ LIỆU =================
+window.renderCommentRulesSettings = function() {
+    const container = document.getElementById('comment-rules-container');
+    if(!container) return;
+    container.innerHTML = '';
+    const rules = appData.settings.commentRules || defaultCommentRules;
+
+    rules.forEach((r, idx) => {
+        container.innerHTML += `
+            <div style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                <input type="number" value="${r.min}" step="0.1" style="width: 55px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; text-align: center;" onchange="updateCommentRule(${idx}, 'min', this.value)">
+                <span>-</span>
+                <input type="number" value="${r.max}" step="0.1" style="width: 55px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; text-align: center;" onchange="updateCommentRule(${idx}, 'max', this.value)">
+                <input type="text" value="${r.text}" style="flex: 1; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 0.85rem;" onchange="updateCommentRule(${idx}, 'text', this.value)">
+                <button class="btn-icon" style="width: 32px; height: 32px; color: var(--danger);" onclick="deleteCommentRule(${idx})"><i class="fas fa-trash"></i></button>
+            </div>
+        `;
+    });
+};
+
+window.updateCommentRule = function(idx, field, val) {
+    if (field === 'min' || field === 'max') {
+        appData.settings.commentRules[idx][field] = Number(val);
+    } else {
+        appData.settings.commentRules[idx].text = val.trim();
+    }
+    window.saveData();
+};
+
+window.addNewCommentRule = function() {
+    if(!appData.settings.commentRules) appData.settings.commentRules = [];
+    appData.settings.commentRules.push({ min: 0, max: 10, text: "Nhận xét mới..." });
+    window.saveData();
+};
+
+window.deleteCommentRule = function(idx) {
+    appData.settings.commentRules.splice(idx, 1);
+    window.saveData();
+};
+
+window.resetDefaultCommentRules = function() {
+    if(confirm("Khôi phục toàn bộ bảng nhận xét mặc định của Bộ GDĐT?")) {
+        appData.settings.commentRules = JSON.parse(JSON.stringify(defaultCommentRules));
+        window.saveData();
+        window.showToast("Đã khôi phục mẫu mặc định!");
+    }
+};
+
+window.saveTeacherSettings = function() {
+    appData.settings.teacherName = document.getElementById('set-teacher-name').value.trim();
+    appData.settings.subject = document.getElementById('set-subject-name').value.trim();
+    appData.settings.year = document.getElementById('set-school-year').value.trim();
+    appData.settings.semester = document.getElementById('set-semester').value;
+    window.saveData();
+    window.showToast("✅ Đã lưu cấu hình giảng dạy!");
+};
+
+window.confirmAddNewStudent = function() {
+    const name = document.getElementById('add-stu-name').value.trim();
+    if(!name) return window.showToast("Vui lòng nhập tên học sinh!", "error");
+
+    const dob = document.getElementById('add-stu-dob').value.trim();
+    const gender = document.getElementById('add-stu-gender').value;
+
+    const currentList = appData.classes[appData.settings.currentClass] || [];
+    currentList.push({
+        id: Date.now(),
+        maHs: "",
+        name: name,
+        dob: dob,
+        gender: gender,
+        tx: [],
+        gk: "",
+        ck: "",
+        dtb: "",
+        comment: "",
+        callCount: 0,
+        violationCount: 0
+    });
+
+    window.saveData();
+    window.closeModal('modal-add-student');
+    document.getElementById('add-stu-name').value = '';
+    window.showToast(`Đã thêm em ${name}!`);
+};
+
+window.backupAppDataJSON = function() {
+    let dataStr = JSON.stringify(appData);
+    let blob = new Blob([dataStr], {type: "application/json"});
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = `DuLieu_GVBM_${appData.settings.year}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    window.showToast("Đã tải bản sao lưu dữ liệu!");
+};
+
+window.resetData = function() {
+    if(confirm("XÓA SẠCH DỮ LIỆU CÁC LỚP? Thao tác này sẽ xóa vĩnh viễn dữ liệu trên máy và trên Đám mây để bạn nhập lại từ đầu.")) {
+        appData.classes = {};
+        appData.settings.currentClass = "";
+        
+        localStorage.setItem('gvbmData_v1', JSON.stringify(appData));
+        
+        if (currentUser) {
+            const docRef = doc(firestoreDb, "DuLieuGVBM", currentUser.uid);
+            setDoc(docRef, appData).then(() => {
+                window.showToast("Đã dọn dẹp sạch sẽ!", "success");
+                setTimeout(() => location.reload(), 1000);
+            }).catch(e => {
+                console.error("Lỗi dọn dẹp:", e);
+                location.reload();
+            });
+        } else {
+            location.reload();
+        }
+    }
+};
+
+window.onload = () => {
+    window.initAppUI();
+};
