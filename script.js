@@ -1,7 +1,7 @@
 // ================= FIREBASE AUTH & DATABASE GVBM =================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAQz-4TAujSNhDV8wQY82-wnCTGJtdxhsM", 
@@ -14,7 +14,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const firestoreDb = getFirestore(app);
+
+// SỬ DỤNG LONG-POLLING ĐỂ TRÁNH LỖI ĐỎ CONSOLE 400 TRÊN TRÌNH DUYỆT
+const firestoreDb = initializeFirestore(app, {
+    experimentalForceLongPolling: true
+});
 const provider = new GoogleAuthProvider();
 
 let currentUser = null;
@@ -40,8 +44,9 @@ onAuthStateChanged(auth, async (user) => {
             const ngayHienTai = new Date();
 
             if (!docUserSnap.exists()) {
+                // RÚT NGẮN THỜI GIAN TRẢI NGHIỆM DÙNG THỬ XUỐNG 15 NGÀY
                 let ngayHetHan = new Date();
-                ngayHetHan.setDate(ngayHienTai.getDate() + 30);
+                ngayHetHan.setDate(ngayHienTai.getDate() + 15);
                 await setDoc(userRef, { email: user.email, ngay_dang_ky: ngayHienTai.toISOString(), ngay_het_han: ngayHetHan.toISOString() });
             } else {
                 const duLieu = docUserSnap.data();
@@ -148,6 +153,7 @@ window.saveData = function() {
 
 window.showToast = function(message, type = 'success') {
     const container = document.getElementById('toast-container'); 
+    if(!container) return;
     const toast = document.createElement('div'); 
     toast.className = `toast ${type}`;
     toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle text-green' : 'fa-exclamation-circle text-red'}"></i> <span>${message}</span>`; 
@@ -247,6 +253,7 @@ window.initAppUI = function() {
 
 window.renderClassSelector = function() {
     const select = document.getElementById('global-class-select');
+    if(!select) return;
     select.innerHTML = '';
     const classList = Object.keys(appData.classes);
     if(classList.length === 0) {
@@ -278,29 +285,29 @@ window.refreshAllViews = function() {
     let displaySubject = keyParts.length > 1 ? keyParts[0] : s.subject;
     let displayClass = keyParts.length > 1 ? keyParts[1] : s.currentClass;
 
-    document.getElementById('dash-teacher-name').innerText = s.teacherName;
-    document.getElementById('drawer-teacher-name').innerText = s.teacherName;
-    document.getElementById('drawer-subject-name').innerText = `${displaySubject} • Lớp ${displayClass}`;
+    if(document.getElementById('dash-teacher-name')) document.getElementById('dash-teacher-name').innerText = s.teacherName;
+    if(document.getElementById('drawer-teacher-name')) document.getElementById('drawer-teacher-name').innerText = s.teacherName;
+    if(document.getElementById('drawer-subject-name')) document.getElementById('drawer-subject-name').innerText = `${displaySubject} • Lớp ${displayClass}`;
     
     let parts = s.teacherName.trim().split(' ');
     let avatarText = "GV";
     if (parts.length > 0 && parts[parts.length-1]) {
         avatarText = parts[parts.length-1].substring(0,2).toUpperCase();
     }
-    document.getElementById('drawer-avatar').innerText = avatarText;
+    if(document.getElementById('drawer-avatar')) document.getElementById('drawer-avatar').innerText = avatarText;
 
     // 1. Dashboard Metrics
     const totalStudents = currentList.length;
-    document.getElementById('stat-class-size').innerText = totalStudents;
+    if(document.getElementById('stat-class-size')) document.getElementById('stat-class-size').innerText = totalStudents;
 
     let validScores = currentList.map(st => Number(st.dtb)).filter(v => !isNaN(v) && v > 0);
     let avgScore = validScores.length > 0 ? (validScores.reduce((a,b)=>a+b, 0) / validScores.length).toFixed(1) : "0.0";
-    document.getElementById('stat-class-avg').innerText = avgScore;
+    if(document.getElementById('stat-class-avg')) document.getElementById('stat-class-avg').innerText = avgScore;
 
     let goodCount = validScores.filter(sc => sc >= 8.0).length;
     let goodRate = totalStudents > 0 ? Math.round((goodCount / totalStudents) * 100) : 0;
-    document.getElementById('stat-good-rate').innerText = `${goodRate}%`;
-    document.getElementById('stat-tx-count').innerText = `${s.txColumns || 4} cột`;
+    if(document.getElementById('stat-good-rate')) document.getElementById('stat-good-rate').innerText = `${goodRate}%`;
+    if(document.getElementById('stat-tx-count')) document.getElementById('stat-tx-count').innerText = `${s.txColumns || 4} cột`;
 
     // Phân bố kết quả
     let cXuatSac = validScores.filter(sc => sc >= 9.0).length;
@@ -308,47 +315,49 @@ window.refreshAllViews = function() {
     let cKha = validScores.filter(sc => sc >= 6.5 && sc < 8.0).length;
     let cCanCoGang = validScores.filter(sc => sc < 6.5).length;
 
-    document.getElementById('count-xuat-sac').innerText = cXuatSac;
-    document.getElementById('count-tot').innerText = cTot;
-    document.getElementById('count-kha').innerText = cKha;
-    document.getElementById('count-can-co-gang').innerText = cCanCoGang;
+    if(document.getElementById('count-xuat-sac')) document.getElementById('count-xuat-sac').innerText = cXuatSac;
+    if(document.getElementById('count-tot')) document.getElementById('count-tot').innerText = cTot;
+    if(document.getElementById('count-kha')) document.getElementById('count-kha').innerText = cKha;
+    if(document.getElementById('count-can-co-gang')) document.getElementById('count-can-co-gang').innerText = cCanCoGang;
 
     if (totalStudents > 0) {
-        document.getElementById('bar-xuat-sac').style.width = `${(cXuatSac/totalStudents)*100}%`;
-        document.getElementById('bar-tot').style.width = `${(cTot/totalStudents)*100}%`;
-        document.getElementById('bar-kha').style.width = `${(cKha/totalStudents)*100}%`;
-        document.getElementById('bar-can-co-gang').style.width = `${(cCanCoGang/totalStudents)*100}%`;
+        if(document.getElementById('bar-xuat-sac')) document.getElementById('bar-xuat-sac').style.width = `${(cXuatSac/totalStudents)*100}%`;
+        if(document.getElementById('bar-tot')) document.getElementById('bar-tot').style.width = `${(cTot/totalStudents)*100}%`;
+        if(document.getElementById('bar-kha')) document.getElementById('bar-kha').style.width = `${(cKha/totalStudents)*100}%`;
+        if(document.getElementById('bar-can-co-gang')) document.getElementById('bar-can-co-gang').style.width = `${(cCanCoGang/totalStudents)*100}%`;
     }
 
     // Danh sách cần chú ý
     const attList = document.getElementById('attention-student-list');
-    attList.innerHTML = '';
-    let attentionStudents = currentList.filter(st => {
-        let isLowScore = (Number(st.dtb) > 0 && Number(st.dtb) < 6.5);
-        let isCD = (typeof st.dtb === 'string' && st.dtb.toUpperCase() === 'CĐ');
-        return isLowScore || isCD || (st.violationCount > 0);
-    });
-    
-    if (attentionStudents.length === 0) {
-        attList.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 15px;">Lớp đang học tập rất tốt! 🎉</div>`;
-    } else {
-        attentionStudents.slice(0, 5).forEach(st => {
-            let initials = st.name.split(' ').map(n=>n[0]).slice(-2).join('').toUpperCase();
-            let isDanger = (Number(st.dtb) > 0 && Number(st.dtb) < 5.0) || (typeof st.dtb === 'string' && st.dtb.toUpperCase() === 'CĐ');
-            let scoreClass = isDanger ? 'danger' : 'warn';
-            attList.innerHTML += `
-                <div class="attention-item" onclick="openStudentProfile(${st.id})">
-                    <div class="att-left">
-                        <div class="avatar-circle-sm">${initials}</div>
-                        <div class="att-info">
-                            <strong>${st.name}</strong>
-                            <span>${st.violationCount || 0} lần vi phạm • ${st.callCount || 0} lần gọi</span>
-                        </div>
-                    </div>
-                    <span class="score-pill ${scoreClass}">${st.dtb || '--'}</span>
-                </div>
-            `;
+    if(attList) {
+        attList.innerHTML = '';
+        let attentionStudents = currentList.filter(st => {
+            let isLowScore = (Number(st.dtb) > 0 && Number(st.dtb) < 6.5);
+            let isCD = (typeof st.dtb === 'string' && st.dtb.toUpperCase() === 'CĐ');
+            return isLowScore || isCD || (st.violationCount > 0);
         });
+        
+        if (attentionStudents.length === 0) {
+            attList.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 15px;">Lớp đang học tập rất tốt! 🎉</div>`;
+        } else {
+            attentionStudents.slice(0, 5).forEach(st => {
+                let initials = st.name.split(' ').map(n=>n[0]).slice(-2).join('').toUpperCase();
+                let isDanger = (Number(st.dtb) > 0 && Number(st.dtb) < 5.0) || (typeof st.dtb === 'string' && st.dtb.toUpperCase() === 'CĐ');
+                let scoreClass = isDanger ? 'danger' : 'warn';
+                attList.innerHTML += `
+                    <div class="attention-item" onclick="openStudentProfile(${st.id})">
+                        <div class="att-left">
+                            <div class="avatar-circle-sm">${initials}</div>
+                            <div class="att-info">
+                                <strong>${st.name}</strong>
+                                <span>${st.violationCount || 0} lần vi phạm • ${st.callCount || 0} lần gọi</span>
+                            </div>
+                        </div>
+                        <span class="score-pill ${scoreClass}">${st.dtb || '--'}</span>
+                    </div>
+                `;
+            });
+        }
     }
 
     if(document.getElementById('stat-view-classname')) document.getElementById('stat-view-classname').innerText = displayClass;
@@ -366,10 +375,10 @@ window.refreshAllViews = function() {
     window.renderGradebookTable();
     window.renderInClassView();
 
-    document.getElementById('set-teacher-name').value = s.teacherName || '';
-    document.getElementById('set-subject-name').value = s.subject || '';
-    document.getElementById('set-school-year').value = s.year || '';
-    document.getElementById('set-semester').value = s.semester || 'HK1';
+    if(document.getElementById('set-teacher-name')) document.getElementById('set-teacher-name').value = s.teacherName || '';
+    if(document.getElementById('set-subject-name')) document.getElementById('set-subject-name').value = s.subject || '';
+    if(document.getElementById('set-school-year')) document.getElementById('set-school-year').value = s.year || '';
+    if(document.getElementById('set-semester')) document.getElementById('set-semester').value = s.semester || 'HK1';
     window.renderCommentRulesSettings();
 
     // Render Lịch dạy hôm nay trên Dashboard Tổng quan
@@ -401,7 +410,6 @@ window.refreshAllViews = function() {
         if(document.getElementById('dash-ll-week-count')) document.getElementById('dash-ll-week-count').innerText = weekLessons;
     }
     window.renderSetupData();
-
 };
 
 // ================= RENDER DANH SÁCH HỌC SINH =================
@@ -969,7 +977,9 @@ window.renderSetupData = function() {
     const tbodyTKB = document.getElementById('tkb-tbody'); 
     if(tbodyTKB) {
         tbodyTKB.innerHTML = '';
-        (stp.tkb || []).forEach((t, i) => { tbodyTKB.innerHTML += `<tr><td>${t.dayOfWeek}</td><td>${t.period}</td><td>${t.className}</td><td>${t.subject}</td><td><button class="btn-outline-action text-red" style="width:25px;height:25px;" onclick="delSetupData('tkb', ${i})"><i class="fas fa-times"></i></button></td></tr>`; });
+        (stp.tkb || []).forEach((t, i) => { 
+            tbodyTKB.innerHTML += `<tr><td>${t.dayOfWeek}</td><td>${t.period}</td><td>${t.className}</td><td>${t.subject}</td><td><button class="btn-outline-action text-red" style="width:25px;height:25px;" onclick="delSetupData('tkb', ${i})"><i class="fas fa-times"></i></button></td></tr>`; 
+        });
     }
     
     const tbodyPPCT = document.getElementById('ppct-tbody'); 
@@ -984,7 +994,9 @@ window.renderSetupData = function() {
     const tbodyHol = document.getElementById('hol-tbody'); 
     if(tbodyHol) {
         tbodyHol.innerHTML = '';
-        (stp.holidays || []).forEach((h, i) => { tbodyHol.innerHTML += `<tr><td>${h.start}</td><td>${h.end}</td><td>${h.name}</td><td><button class="btn-outline-action text-red" style="width:25px;height:25px;" onclick="delSetupData('holidays', ${i})"><i class="fas fa-times"></i></button></td></tr>`; });
+        (stp.holidays || []).forEach((h, i) => { 
+            tbodyHol.innerHTML += `<tr><td>${h.start}</td><td>${h.end}</td><td>${h.name}</td><td><button class="btn-outline-action text-red" style="width:25px;height:25px;" onclick="delSetupData('holidays', ${i})"><i class="fas fa-times"></i></button></td></tr>`; 
+        });
     }
 
     const tbodyMath = document.getElementById('math-ratio-tbody');
@@ -1089,12 +1101,22 @@ window.handleGeneralImport = function(event) {
                     rows.forEach((tr) => {
                         let cells = Array.from(tr.querySelectorAll('th, td')).map(c => c.innerText.trim());
                         if (tietIdx === -1) {
-                            cells.forEach((txt, i) => { let low = txt.toLowerCase(); if(low === 'tiết' || low === 'tiết ppct' || low === 'tiết học') tietIdx = i; else if(low.includes('nội dung') || low.includes('tên bài') || low.includes('bài dạy')) ndIdx = i; });
-                            if(tietIdx === -1 && cells.length >= 2) { if(cells[0].toLowerCase().includes('tiết')) { tietIdx = 0; ndIdx = 1; } else if(cells[1].toLowerCase().includes('tiết')) { tietIdx = 1; ndIdx = 2; } }
+                            cells.forEach((txt, i) => { 
+                                let low = txt.toLowerCase(); 
+                                if(low === 'tiết' || low === 'tiết ppct' || low === 'tiết học') tietIdx = i; 
+                                else if(low.includes('nội dung') || low.includes('tên bài') || low.includes('bài dạy')) ndIdx = i; 
+                            });
+                            if(tietIdx === -1 && cells.length >= 2) { 
+                                if(cells[0].toLowerCase().includes('tiết')) { tietIdx = 0; ndIdx = 1; } 
+                                else if(cells[1].toLowerCase().includes('tiết')) { tietIdx = 1; ndIdx = 2; } 
+                            }
                         } else {
                             if (cells.length > Math.max(tietIdx, ndIdx) && ndIdx !== -1) {
                                 let tiet = parseInt(cells[tietIdx]); let nd = cells[ndIdx];
-                                if(!isNaN(tiet) && nd) { appData.scheduleSetup.ppct.push({ className: targetClass, subject: targetSubject, ppct: tiet, content: nd }); count++; }
+                                if(!isNaN(tiet) && nd) { 
+                                    appData.scheduleSetup.ppct.push({ className: targetClass, subject: targetSubject, ppct: tiet, content: nd }); 
+                                    count++; 
+                                }
                             }
                         }
                     });
@@ -1430,7 +1452,6 @@ window.downloadTemplatePPCT = function() {
     XLSX.writeFile(wb, "Mau_Phan_Phoi_CT.xlsx");
     window.showToast("Đã tải xuống File Mẫu PPCT chuẩn phân môn!", "success");
 };
-
 
 // ==================== CẢNH BÁO CẬP NHẬT PHIÊN BẢN MỚI ====================
 const CURRENT_APP_VERSION = 'v4.2_gvbm_lesson_log';

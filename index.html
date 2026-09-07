@@ -10,10 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- THƯ VIỆN ĐỌC & XUẤT FILE EXCEL EDU -->
+    <!-- THƯ VIỆN ĐỌC & XUẤT FILE EXCEL & WORD -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
     <div id="toast-container"></div>
@@ -63,9 +63,9 @@
         </button>
     </div>
 
-    <!-- MÀN HÌNH HẾT HẠN DÙNG THỬ -->
+    <!-- MÀN HÌNH HẾT HẠN DÙNG THỬ (15 NGÀY) -->
     <div id="man-hinh-thu-phi" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: rgba(255, 255, 255, 0.98); z-index: 9999; text-align: center; padding-top: 5vh; font-family: 'Plus Jakarta Sans', sans-serif; overflow-y: auto;">
-        <h2 style="color: #ef4444; font-size: 26px; margin-bottom: 5px; font-weight: 800;">Đã hết 30 ngày trải nghiệm!</h2>
+        <h2 style="color: #ef4444; font-size: 26px; margin-bottom: 5px; font-weight: 800;">Đã hết 15 ngày trải nghiệm!</h2>
         <p style="font-size: 15px; color: #64748b; margin-bottom: 25px; padding: 0 20px; line-height: 1.5;">Dữ liệu sổ điểm và giáo án của các lớp được lưu trữ an toàn trên Đám mây (Cloud). Vui lòng chọn gói gia hạn để tiếp tục sử dụng và phụ giúp tác giả duy trì máy chủ nhé! ❤️</p>
         
         <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 25px; padding: 0 10px;">
@@ -136,6 +136,7 @@
                         Gia hạn
                     </button>
                 </div>
+
                 <div class="hero-banner">
                     <div class="hero-tag">☀️ CHÀO NGÀY MỚI</div>
                     <h2>Chào <span id="dash-teacher-name">Thầy/Cô</span>!</h2>
@@ -144,7 +145,6 @@
                     <i class="fas fa-graduation-cap hero-illustration"></i>
                 </div>
 
-                
                 <!-- LỊCH DẠY HÔM NAY (SỔ BÁO GIẢNG) -->
                 <div class="lesson-log-hero" onclick="switchView('view-lesson-log')" style="background: linear-gradient(135deg, #1d4ed8, #3b82f6); border-radius: 20px; padding: 20px; color: white; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3); cursor: pointer; position: relative; overflow: hidden;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px;">
@@ -210,7 +210,7 @@
                     </div>
                 </div>
 
-                <!-- CẦN CHÚ Ý (HỌC SINH ĐIỂM THẤP HOẶC VI PHẠM) -->
+                <!-- CẦN CHÚ Ý -->
                 <div class="card-section">
                     <div class="card-section-header">
                         <div class="card-section-title">
@@ -219,9 +219,7 @@
                         </div>
                         <button class="btn-outline" style="padding: 4px 10px; font-size: 0.75rem; border-radius: 10px;" onclick="switchView('view-gradebook')">Xem sổ điểm</button>
                     </div>
-                    <div class="attention-list" id="attention-student-list">
-                        <!-- Đổ danh sách học sinh cần chú ý -->
-                    </div>
+                    <div class="attention-list" id="attention-student-list"></div>
                 </div>
             </section>
 
@@ -238,7 +236,7 @@
                 <div id="students-card-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
             </section>
 
-            <!-- ================= 3. VIEW TRONG TIẾT (QUẢN LÝ VI PHẠM & GỌI TÊN) ================= -->
+            <!-- ================= 3. VIEW TRONG TIẾT ================= -->
             <section id="view-in-class" class="view">
                 <div class="card-section" style="text-align: center;">
                     <div class="card-section-title mb-15">
@@ -289,9 +287,7 @@
                                 <th>Nhận xét</th>
                             </tr>
                         </thead>
-                        <tbody id="score-table-body">
-                            <!-- Đổ dữ liệu điểm từng học sinh -->
-                        </tbody>
+                        <tbody id="score-table-body"></tbody>
                     </table>
                 </div>
                 <input type="file" id="edu-import-input" style="display: none;" accept=".xlsx, .xls, .csv" onchange="handleEduImportFile(event)">
@@ -363,8 +359,7 @@
                 </div>
             </section>
         
-
-<!-- ================= SỔ BÁO GIẢNG ================= -->
+            <!-- ================= SỔ BÁO GIẢNG ================= -->
             <section id="view-lesson-log" class="view">
                 <div class="top-bar">
                     <div class="top-bar-title"><h2>📚 Sổ báo giảng</h2></div>
@@ -382,7 +377,7 @@
                 <div class="ll-stats-bar mt-15" id="ll-stats-container"></div>
                 <div id="ll-schedule-list" class="list-container mt-15" style="padding-bottom: 70px;"></div>
             </section>
-</main>
+        </main>
 
         <!-- BOTTOM BAR ĐIỀU HƯỚNG NHANH -->
         <nav id="bottom-bar">
@@ -409,14 +404,14 @@
                     <div class="spb-header">
                         <div class="spb-avatar" id="prof-avatar">TK</div>
                         <div class="spb-info">
-                            <h3 id="prof-header-name">Võ Tuấn Kiệt</h3>
-                            <p>Lớp <span id="prof-header-class">10A4</span> • STT <span id="prof-header-stt">5</span></p>
+                            <h3 id="prof-header-name">Học sinh</h3>
+                            <p>Lớp <span id="prof-header-class">...</span> • STT <span id="prof-header-stt">1</span></p>
                         </div>
                     </div>
                     <div class="spb-scores">
                         <div>
                             <span style="font-size: 0.75rem; opacity: 0.85; display: block;">Điểm TB</span>
-                            <span class="spb-dtb" id="prof-header-dtb">5.6</span>
+                            <span class="spb-dtb" id="prof-header-dtb">0.0</span>
                         </div>
                         <span class="badge-chip" id="prof-header-eval" style="background: white; color: var(--primary); font-weight: 800;">Đạt</span>
                     </div>
@@ -455,9 +450,7 @@
                     <h4>Điểm thường xuyên</h4>
                     <span>✏️ Có thể cập nhật</span>
                 </div>
-                <div class="tx-scores-grid" id="prof-tx-container">
-                    <!-- Đổ động TX1, TX2, TX3, TX4... -->
-                </div>
+                <div class="tx-scores-grid" id="prof-tx-container"></div>
 
                 <div class="section-label-row">
                     <h4>Điểm định kỳ</h4>
@@ -500,68 +493,151 @@
         </div>
     </div>
 
-    <!-- SCRIPT CHÍNH DẠNG MODULE CHO FIREBASE -->
-    <script type="module" src="script.js"></script>
-
-
-<div id="modal-setup-lesson-log" class="modal">
+    <!-- MODAL CẤU HÌNH SỔ BÁO GIẢNG (CHA) -->
+    <div id="modal-setup-lesson-log" class="modal" style="z-index: 1000;">
         <div class="modal-content" style="height: 95vh; background: #f8fafc;">
             <div class="modal-header">
                 <h3>⚙️ Cấu hình Sổ báo giảng</h3>
-                <div class="close" onclick="closeModal('modal-setup-lesson-log')"><i class="fas fa-times"></i></div>
+                <div class="close" onclick="closeModal('modal-setup-lesson-log')" style="cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></div>
             </div>
             <div class="modal-body">
                 <div class="alert-item yellow" style="margin-bottom:15px;"><div class="alert-icon"><i class="fas fa-lightbulb"></i></div><div class="alert-info"><p>Cấu hình 1 lần, hệ thống tự động sinh lịch dạy cả năm!</p></div></div>
-                <div class="settings-card mb-20"><label>📅 Ngày bắt đầu Tuần 1 (Thứ 2)</label><input type="date" id="setup-week1-date" class="mb-0"></div>
+                <div class="settings-card mb-20"><label style="font-weight: 700; font-size: 0.9rem; display: block; margin-bottom: 6px;">📅 Ngày bắt đầu Tuần 1 (Thứ 2)</label><input type="date" id="setup-week1-date" class="mb-0" style="width: 100%; padding: 10px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-weight: bold;"></div>
                 <div class="setup-grid">
                     <div class="setup-card" onclick="openModal('modal-setup-tkb')"><div class="setup-icon text-blue"><i class="fas fa-table"></i></div><div class="setup-info"><h4>Thời khóa biểu</h4><p id="setup-tkb-count">0 bản ghi</p></div><i class="fas fa-chevron-right text-muted"></i></div>
                     <div class="setup-card" onclick="openModal('modal-setup-ppct')"><div class="setup-icon text-green"><i class="fas fa-list-ol"></i></div><div class="setup-info"><h4>Phân phối chương trình</h4><p id="setup-ppct-count">0 bài dạy</p></div><i class="fas fa-chevron-right text-muted"></i></div>
                     <div class="setup-card" onclick="openModal('modal-setup-holidays')"><div class="setup-icon text-red"><i class="fas fa-umbrella-beach"></i></div><div class="setup-info"><h4>Lịch Nghỉ & Sự kiện</h4><p id="setup-holidays-count">0 ngày nghỉ</p></div><i class="fas fa-chevron-right text-muted"></i></div>
-                    <div class="setup-card" onclick="openModal('modal-setup-math-ratio')"><div class="setup-icon" style="background:#f59e0b; box-shadow:0 4px 10px rgba(245,158,11,0.3);"><i class="fas fa-calculator"></i></div><div class="setup-info"><h4>Tỉ lệ Đại / Hình (Toán)</h4><p id="setup-math-ratio-count">0 cấu hình</p></div><i class="fas fa-chevron-right text-muted"></i></div>
+                    <div class="setup-card" onclick="openModal('modal-setup-math-ratio')"><div class="setup-icon" style="background:#f59e0b; color: white; box-shadow:0 4px 10px rgba(245,158,11,0.3);"><i class="fas fa-calculator"></i></div><div class="setup-info"><h4>Tỉ lệ Đại / Hình (Toán)</h4><p id="setup-math-ratio-count">0 cấu hình</p></div><i class="fas fa-chevron-right text-muted"></i></div>
                 </div>
                 <button class="btn-primary btn-large w-full mt-20 shadow-lg" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark));" onclick="generateAutoSchedule()"><i class="fas fa-magic"></i> 🤖 TỰ ĐỘNG TẠO SỔ BÁO GIẢNG</button>
             </div>
         </div>
     </div>
 
-    <!-- Modals nhập TKB, PPCT, Holiday -->
-    <div id="modal-setup-tkb" class="modal" style="z-index: 210;"><div class="modal-content" style="height: 90vh;"><div class="modal-header"><h3>🕒 Thời khóa biểu</h3><div class="close" onclick="closeModal('modal-setup-tkb')"><i class="fas fa-times"></i></div></div><div class="modal-body"><div style="display: flex; gap: 10px; margin-bottom: 15px;"><button class="btn-outline text-orange w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="downloadTemplateTKB()"><i class="fas fa-download"></i> Tải Mẫu</button><button class="btn-outline text-blue w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="triggerImport('tkb')"><i class="fas fa-file-excel"></i> Import</button><button class="btn-outline text-red w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="clearAllSetupData('tkb')" title="Xóa toàn bộ TKB để nhập lại"><i class="fas fa-trash-alt"></i> Xóa hết</button></div><div class="form-row"><div class="input-group"><label>Thứ (2-7)</label><input type="number" id="add-tkb-day" min="2" max="7"></div><div class="input-group"><label>Tiết (1-10)</label><input type="number" id="add-tkb-period" min="1" max="10"></div></div><div class="form-row"><div class="input-group"><label>Lớp</label><input type="text" id="add-tkb-class"></div><div class="input-group"><label>Môn</label><input type="text" id="add-tkb-subject"></div></div><button class="btn-primary w-full mb-20" onclick="addTKB()">Thêm TKB</button><div class="table-responsive"><table class="preview-table"><thead><tr><th>Thứ</th><th>Tiết</th><th>Lớp</th><th>Môn</th><th>Xóa</th></tr></thead><tbody id="tkb-tbody"></tbody></table></div></div></div></div>
+    <!-- 4 MODAL CON NỔI LÊN TRÊN (Z-INDEX 1100) -->
+    <!-- 1. MODAL TKB -->
+    <div id="modal-setup-tkb" class="modal" style="z-index: 1100; display: none;">
+        <div class="modal-content" style="height: 90vh;">
+            <div class="modal-header">
+                <h3>🕒 Thời khóa biểu</h3>
+                <div class="close" onclick="closeModal('modal-setup-tkb')" style="cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></div>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn-outline text-orange w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="downloadTemplateTKB()"><i class="fas fa-download"></i> Tải Mẫu</button>
+                    <button class="btn-outline text-blue w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="triggerImport('tkb')"><i class="fas fa-file-excel"></i> Import</button>
+                    <button class="btn-outline text-red w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="clearAllSetupData('tkb')" title="Xóa toàn bộ TKB để nhập lại"><i class="fas fa-trash-alt"></i> Xóa hết</button>
+                </div>
+                <div class="form-row">
+                    <div class="input-group" style="flex: 1;"><label>Thứ (2-7)</label><input type="number" id="add-tkb-day" min="2" max="7" placeholder="VD: 2"></div>
+                    <div class="input-group" style="flex: 1;"><label>Tiết (1-10)</label><input type="number" id="add-tkb-period" min="1" max="10" placeholder="VD: 1"></div>
+                </div>
+                <div class="form-row">
+                    <div class="input-group" style="flex: 1;"><label>Lớp</label><input type="text" id="add-tkb-class" placeholder="VD: 6A"></div>
+                    <div class="input-group" style="flex: 1;"><label>Môn</label><input type="text" id="add-tkb-subject" placeholder="VD: Toán"></div>
+                </div>
+                <button class="btn-primary w-full mb-20" onclick="addTKB()">Thêm TKB</button>
+                <div class="table-responsive">
+                    <table class="preview-table">
+                        <thead><tr><th>Thứ</th><th>Tiết</th><th>Lớp</th><th>Môn</th><th>Xóa</th></tr></thead>
+                        <tbody id="tkb-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
     
-    <div id="modal-setup-ppct" class="modal" style="z-index: 210;"><div class="modal-content" style="height: 90vh;"><div class="modal-header"><h3>📚 Phân phối chương trình</h3><div class="close" onclick="closeModal('modal-setup-ppct')"><i class="fas fa-times"></i></div></div><div class="modal-body"><div style="display: flex; gap: 10px; margin-bottom: 15px;"><button class="btn-outline text-orange w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="downloadTemplatePPCT()"><i class="fas fa-download"></i> Tải Mẫu</button><button class="btn-outline text-green w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="triggerImport('ppct')"><i class="fas fa-file-excel"></i> Import</button><button class="btn-outline text-red w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="clearAllSetupData('ppct')" title="Xóa toàn bộ PPCT để nhập lại"><i class="fas fa-trash-alt"></i> Xóa hết</button></div><div class="form-row"><div class="input-group"><label>Khối / Lớp (VD: 7 hoặc 7A1)</label><input type="text" id="add-ppct-class" placeholder="VD: 7 hoặc 7A1"></div><div class="input-group"><label>Môn</label><input type="text" id="add-ppct-subject" placeholder="VD: Toán"></div></div><div class="form-row"><div class="input-group"><label>Tiết PPCT</label><input type="number" id="add-ppct-period"></div><div class="input-group"><label>Phân môn (Đại / Hình nếu có)</label><input type="text" id="add-ppct-branch" placeholder="Đại hoặc Hình"></div></div><div class="input-group"><label>Nội dung bài dạy</label><input type="text" id="add-ppct-content"></div><button class="btn-primary w-full mb-20" onclick="addPPCT()">Thêm Bài</button><div class="table-responsive"><table class="preview-table"><thead><tr><th>Khối/Lớp</th><th>Môn</th><th>Phân môn</th><th>Tiết</th><th>Nội dung</th><th>Xóa</th></tr></thead><tbody id="ppct-tbody"></tbody></table></div></div></div></div>
+    <!-- 2. MODAL PPCT -->
+    <div id="modal-setup-ppct" class="modal" style="z-index: 1100; display: none;">
+        <div class="modal-content" style="height: 90vh;">
+            <div class="modal-header">
+                <h3>📚 Phân phối chương trình</h3>
+                <div class="close" onclick="closeModal('modal-setup-ppct')" style="cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></div>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn-outline text-orange w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="downloadTemplatePPCT()"><i class="fas fa-download"></i> Tải Mẫu</button>
+                    <button class="btn-outline text-green w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="triggerImport('ppct')"><i class="fas fa-file-excel"></i> Import</button>
+                    <button class="btn-outline text-red w-full" style="padding: 10px; font-weight: bold; border-radius: 12px;" onclick="clearAllSetupData('ppct')" title="Xóa toàn bộ PPCT để nhập lại"><i class="fas fa-trash-alt"></i> Xóa hết</button>
+                </div>
+                <div class="form-row">
+                    <div class="input-group" style="flex: 1;"><label>Khối / Lớp (VD: 6 hoặc 6A)</label><input type="text" id="add-ppct-class" placeholder="VD: 6"></div>
+                    <div class="input-group" style="flex: 1;"><label>Môn</label><input type="text" id="add-ppct-subject" placeholder="VD: Toán"></div>
+                </div>
+                <div class="form-row">
+                    <div class="input-group" style="flex: 1;"><label>Tiết PPCT</label><input type="number" id="add-ppct-period" placeholder="VD: 1"></div>
+                    <div class="input-group" style="flex: 1;"><label>Phân môn (Đại / Hình)</label><input type="text" id="add-ppct-branch" placeholder="Đại hoặc Hình"></div>
+                </div>
+                <div class="input-group"><label>Nội dung bài dạy</label><input type="text" id="add-ppct-content" placeholder="Nhập tên bài dạy..."></div>
+                <button class="btn-primary w-full mb-20" onclick="addPPCT()">Thêm Bài</button>
+                <div class="table-responsive">
+                    <table class="preview-table">
+                        <thead><tr><th>Khối/Lớp</th><th>Môn</th><th>Phân môn</th><th>Tiết</th><th>Nội dung</th><th>Xóa</th></tr></thead>
+                        <tbody id="ppct-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
     
-    <div id="modal-setup-holidays" class="modal" style="z-index: 210;"><div class="modal-content" style="height: 90vh;"><div class="modal-header"><h3>🏖️ Ngày nghỉ & Sự kiện</h3><div class="close" onclick="closeModal('modal-setup-holidays')"><i class="fas fa-times"></i></div></div><div class="modal-body"><button class="btn-outline text-red w-full mb-15" onclick="triggerImport('holidays')"><i class="fas fa-file-excel"></i> Import Lịch từ Excel</button><div class="form-row"><div class="input-group"><label>Ngày bắt đầu</label><input type="date" id="add-hol-start"></div><div class="input-group"><label>Ngày kết thúc</label><input type="date" id="add-hol-end"></div></div><div class="input-group"><label>Tên sự kiện / Lễ</label><input type="text" id="add-hol-name" placeholder="VD: Nghỉ Tết Nguyên Đán"></div><button class="btn-primary w-full mb-20" onclick="addHoliday()">Thêm Ngày Nghỉ</button><div class="table-responsive"><table class="preview-table"><thead><tr><th>Từ ngày</th><th>Đến ngày</th><th>Tên sự kiện</th><th>Xóa</th></tr></thead><tbody id="hol-tbody"></tbody></table></div></div></div></div>
-    <div id="modal-setup-math-ratio" class="modal" style="z-index: 210;">
+    <!-- 3. MODAL NGHỈ LỄ & SỰ KIỆN -->
+    <div id="modal-setup-holidays" class="modal" style="z-index: 1100; display: none;">
+        <div class="modal-content" style="height: 90vh;">
+            <div class="modal-header">
+                <h3>🏖️ Ngày nghỉ & Sự kiện</h3>
+                <div class="close" onclick="closeModal('modal-setup-holidays')" style="cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></div>
+            </div>
+            <div class="modal-body">
+                <button class="btn-outline text-red w-full mb-15" onclick="triggerImport('holidays')"><i class="fas fa-file-excel"></i> Import Lịch từ Excel</button>
+                <div class="form-row">
+                    <div class="input-group" style="flex: 1;"><label>Ngày bắt đầu</label><input type="date" id="add-hol-start"></div>
+                    <div class="input-group" style="flex: 1;"><label>Ngày kết thúc</label><input type="date" id="add-hol-end"></div>
+                </div>
+                <div class="input-group"><label>Tên sự kiện / Lễ</label><input type="text" id="add-hol-name" placeholder="VD: Nghỉ Tết Nguyên Đán"></div>
+                <button class="btn-primary w-full mb-20" onclick="addHoliday()">Thêm Ngày Nghỉ</button>
+                <div class="table-responsive">
+                    <table class="preview-table">
+                        <thead><tr><th>Từ ngày</th><th>Đến ngày</th><th>Tên sự kiện</th><th>Xóa</th></tr></thead>
+                        <tbody id="hol-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. MODAL TỈ LỆ ĐẠI / HÌNH -->
+    <div id="modal-setup-math-ratio" class="modal" style="z-index: 1100; display: none;">
         <div class="modal-content" style="height: 90vh;">
             <div class="modal-header">
                 <h3>📐 Tỉ lệ Đại / Hình môn Toán</h3>
-                <div class="close" onclick="closeModal('modal-setup-math-ratio')"><i class="fas fa-times"></i></div>
+                <div class="close" onclick="closeModal('modal-setup-math-ratio')" style="cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></div>
             </div>
             <div class="modal-body">
                 <div class="alert-item yellow mb-15">
                     <div class="alert-info">
-                        Tự do cấu hình tỉ lệ Đại/Hình theo từng khoảng tuần cho từng khối (VD: Khối 7 Tuần 1-14: 3 Đại 1 Hình; Tuần 15-18: 2 Đại 2 Hình...).
+                        Tự do cấu hình tỉ lệ Đại/Hình theo từng khoảng tuần cho từng khối (VD: Khối 6 Tuần 1-14: 3 Đại 1 Hình; Tuần 15-18: 2 Đại 2 Hình...).
                     </div>
                 </div>
                 <div class="form-row">
-                    <div class="input-group">
+                    <div class="input-group" style="flex: 1;">
                         <label>Khối (VD: 6, 7, 8, 9)</label>
-                        <input type="text" id="add-math-grade" placeholder="VD: 7">
+                        <input type="text" id="add-math-grade" placeholder="VD: 6">
                     </div>
-                    <div class="input-group">
+                    <div class="input-group" style="flex: 1;">
                         <label>Từ tuần</label>
                         <input type="number" id="add-math-from-week" min="1" max="35" placeholder="1">
                     </div>
-                    <div class="input-group">
+                    <div class="input-group" style="flex: 1;">
                         <label>Đến tuần</label>
                         <input type="number" id="add-math-to-week" min="1" max="35" placeholder="14">
                     </div>
                 </div>
                 <div class="form-row">
-                    <div class="input-group">
+                    <div class="input-group" style="flex: 1;">
                         <label>Số tiết Đại / tuần</label>
                         <input type="number" id="add-math-dai" min="0" max="10" value="3">
                     </div>
-                    <div class="input-group">
+                    <div class="input-group" style="flex: 1;">
                         <label>Số tiết Hình / tuần</label>
                         <input type="number" id="add-math-hinh" min="0" max="10" value="1">
                     </div>
@@ -584,21 +660,41 @@
         </div>
     </div>
 
-    
+    <!-- MODAL ĐỔI LỊCH / DẠY BÙ -->
+    <div id="modal-adjust-schedule" class="modal" style="z-index: 1200; display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔄 Đổi lịch / Dạy bù</h3>
+                <div class="close" onclick="closeModal('modal-adjust-schedule')" style="cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></div>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="adj-sched-id">
+                <div class="alert-item yellow mb-15"><div class="alert-info" id="adj-sched-info"></div></div>
+                <div class="form-row">
+                    <div class="input-group" style="flex: 1;"><label>Ngày thực dạy</label><input type="date" id="adj-sched-date"></div>
+                    <div class="input-group" style="flex: 1;"><label>Tiết (1-10)</label><input type="number" id="adj-sched-period"></div>
+                </div>
+                <div class="input-group mb-0"><label>Lý do</label><input type="text" id="adj-sched-note" placeholder="VD: Dạy bù do nghỉ lễ..."></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary w-full" onclick="saveAdjustedSchedule()">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DUY NHẤT 1 INPUT FILE CHO IMPORT CHUNG -->
     <input type="file" id="general-import-file" style="display:none;" accept=".xlsx, .xls, .csv, .docx" onchange="handleGeneralImport(event)">
-<div id="modal-adjust-schedule" class="modal" style="z-index: 300;"><div class="modal-content"><div class="modal-header"><h3>🔄 Đổi lịch / Dạy bù</h3><div class="close" onclick="closeModal('modal-adjust-schedule')"><i class="fas fa-times"></i></div></div><div class="modal-body"><input type="hidden" id="adj-sched-id"><div class="alert-item yellow mb-15"><div class="alert-info" id="adj-sched-info"></div></div><div class="form-row"><div class="input-group"><label>Ngày thực dạy</label><input type="date" id="adj-sched-date"></div><div class="input-group"><label>Tiết (1-10)</label><input type="number" id="adj-sched-period"></div></div><div class="input-group mb-0"><label>Lý do</label><input type="text" id="adj-sched-note"></div></div><div class="modal-footer"><button class="btn-primary w-full" onclick="saveAdjustedSchedule()">Lưu thay đổi</button></div></div></div>
-<input type="file" id="general-import-file" style="display:none;" accept=".xlsx, .xls, .csv, .docx" onchange="handleGeneralImport(event)">
 
     <!-- MODAL GIA HẠN SỚM (1 NĂM / TRỌN ĐỜI) -->
     <div id="modal-upgrade" class="modal" style="z-index: 9999;">
         <div class="modal-content" style="background: #f8fafc; text-align: center; max-height: 90vh;">
             <div class="modal-header">
                 <h3>🚀 Gia Hạn Bản Quyền GVBM</h3>
-                <div class="close" onclick="closeModal('modal-upgrade')"><i class="fas fa-times"></i></div>
+                <div class="close" onclick="closeModal('modal-upgrade')" style="cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></div>
             </div>
             <div class="modal-body" style="padding: 20px;">
                 <p style="font-size: 14px; color: #64748b; margin-bottom: 20px; font-weight: 600; line-height: 1.6; text-align: left;">
-                    🎉 <strong>Thầy cô đã trải nghiệm app trong 25 ngày!</strong> Hy vọng ứng dụng đã giúp việc tính ĐTB, quản lý lớp và làm Sổ Báo Giảng trở nên nhẹ nhàng, thuận tiện hơn.<br><br>
+                    🎉 <strong>Thầy cô đã trải nghiệm app trong 15 ngày!</strong> Hy vọng ứng dụng đã giúp việc tính ĐTB, quản lý lớp và làm Sổ Báo Giảng trở nên nhẹ nhàng, thuận tiện hơn.<br><br>
                     Để tiếp tục duy trì <strong>Cloud (Đám mây)</strong>, máy chủ và hệ thống đồng bộ dữ liệu ổn định, app cần một khoản chi phí vận hành nhỏ mỗi tháng.<br><br>
                     ❤️ Chỉ từ <strong>15.000đ/tháng</strong> – chưa bằng một ly cà phê – thầy cô có thể sử dụng đầy đủ mọi tính năng, đồng bộ Cloud an toàn và ủng hộ mình duy trì, nâng cấp app ngày càng tốt hơn.<br><br>
                     <strong>Cảm ơn thầy cô đã đồng hành và ủng hộ trong thời gian qua!</strong> 🙏
@@ -640,12 +736,12 @@
         </div>
     </div>
 
-    <!-- MODAL THÔNG BÁO CẬP NHẬT TÍNH NĂNG MỚI (Tự hiện khi có phiên bản mới) -->
+    <!-- MODAL THÔNG BÁO CẬP NHẬT TÍNH NĂNG MỚI -->
     <div id="modal-update-announcement" class="modal" style="z-index: 9999;">
         <div class="modal-content" style="max-height: 90vh;">
             <div class="modal-header">
                 <h3>🎉 Có gì mới trong bản cập nhật GVBM?</h3>
-                <div class="close" onclick="closeModal('modal-update-announcement')"><i class="fas fa-times"></i></div>
+                <div class="close" onclick="closeModal('modal-update-announcement')" style="cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></div>
             </div>
             <div class="modal-body" style="line-height: 1.6; color: var(--text-main);">
                 <div class="alert-item green mb-15">
@@ -669,5 +765,7 @@
         </div>
     </div>
 
+    <!-- SCRIPT CHÍNH DẠNG MODULE CHO FIREBASE -->
+    <script type="module" src="script.js"></script>
 </body>
 </html>
