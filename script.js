@@ -54,6 +54,15 @@ onAuthStateChanged(auth, async (user) => {
                     document.getElementById('man-hinh-thu-phi').style.display = 'block';
                     let emailElements = document.getElementsByClassName('email-user');
                     for (let i = 0; i < emailElements.length; i++) emailElements[i].innerText = user.email.split('@')[0];
+                } else if (daysLeft <= 5) {
+                    const banner = document.getElementById('trial-warning-banner');
+                    if (banner) {
+                        banner.style.display = 'flex';
+                        document.getElementById('trial-days-left').innerText = daysLeft;
+                        if(document.getElementById('upgrade-email-prefix')) {
+                            document.getElementById('upgrade-email-prefix').innerText = user.email.split('@')[0];
+                        }
+                    }
                 }
             }
         } catch (error) { console.log("Lỗi kiểm tra bản quyền:", error); }
@@ -100,7 +109,7 @@ const defaultCommentRules = [
 function initData() {
     let saved = JSON.parse(localStorage.getItem('gvbmData_v1'));
     if (!saved) {
-        return {
+        saved = {
             settings: {
                 teacherName: "Thầy / Cô",
                 subject: "Toán học",
@@ -110,8 +119,14 @@ function initData() {
                 txColumns: 4,
                 commentRules: defaultCommentRules
             },
-            classes: {}
+            classes: {},
+            scheduleSetup: { week1Start: "", ppct: [], tkb: [], holidays: [], mathRatios: [] },
+            scheduleRecords: []
         };
+    } else {
+        if (!saved.scheduleSetup) saved.scheduleSetup = { week1Start: "", ppct: [], tkb: [], holidays: [], mathRatios: [] };
+        if (!saved.scheduleSetup.mathRatios) saved.scheduleSetup.mathRatios = [];
+        if (!saved.scheduleRecords) saved.scheduleRecords = [];
     }
     return saved;
 }
@@ -156,6 +171,7 @@ window.switchView = function(viewId, navEl = null) {
         'view-students': 'Học sinh',
         'view-in-class': 'Trong tiết',
         'view-gradebook': 'Sổ điểm',
+        'view-lesson-log': 'Sổ báo giảng',
         'view-statistics': 'Thống kê',
         'view-settings': 'Cài đặt'
     };
@@ -163,6 +179,7 @@ window.switchView = function(viewId, navEl = null) {
 
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     if(navEl) navEl.classList.add('active');
+    if(viewId === 'view-lesson-log') window.initLessonLogView();
     
     window.refreshAllViews();
 };
@@ -347,6 +364,37 @@ window.refreshAllViews = function() {
     document.getElementById('set-school-year').value = s.year || '';
     document.getElementById('set-semester').value = s.semester || 'HK1';
     window.renderCommentRulesSettings();
+
+    // Render Lịch dạy hôm nay trên Dashboard Tổng quan
+    const llList = document.getElementById('dash-ll-list');
+    if (llList) {
+        llList.innerHTML = '';
+        let today = getTodayStr();
+        let todaysLessons = (appData.scheduleRecords || []).filter(r => r.date === today);
+        if(document.getElementById('dash-ll-date')) document.getElementById('dash-ll-date').innerText = new Date().toLocaleDateString('vi-VN');
+        if(todaysLessons.length === 0) {
+            llList.innerHTML = `<div style="text-align:center; font-size:0.85rem; opacity:0.85; color:white; padding:5px;">Hôm nay không có tiết dạy nào.</div>`;
+        } else {
+            todaysLessons.sort((a,b) => a.period - b.period).forEach(l => {
+                let stIcon = l.status === 'off' ? 'fa-times text-red' : (l.status === 'completed' ? 'fa-check text-green' : 'fa-clock text-blue');
+                llList.innerHTML += `
+                    <div class="ll-item">
+                        <div class="ll-period"><span>Tiết</span>${l.period}</div>
+                        <div class="ll-content">
+                            <h4>${l.subject} - Lớp ${l.className}</h4>
+                            <p>${l.content}</p>
+                        </div>
+                        <i class="fas ${stIcon}" style="background:white; padding:6px; border-radius:50%; font-size:0.8rem;"></i>
+                    </div>
+                `;
+            });
+        }
+        let currentWeek = todaysLessons.length > 0 ? todaysLessons[0].week : 1;
+        let weekLessons = (appData.scheduleRecords || []).filter(r => r.week == currentWeek && r.status !== 'off').length;
+        if(document.getElementById('dash-ll-week-count')) document.getElementById('dash-ll-week-count').innerText = weekLessons;
+    }
+    window.renderSetupData();
+
 };
 
 // ================= RENDER DANH SÁCH HỌC SINH =================
@@ -886,4 +934,512 @@ window.resetData = function() {
 
 window.onload = () => {
     window.initAppUI();
+    window.checkAppUpdateAnnouncement();
+};
+
+// ==================== CÁC HÀM SỔ BÁO GIẢNG ====================
+function getTodayStr() { return new Date().toISOString().split('T')[0]; }
+
+function extractGrade(className) {
+    if (!className) return "";
+    let str = String(className).trim();
+    let match = str.match(/(?:Khối\s*)?([1-9]|1[0-2])/i);
+    return match ? match[1] : str.toLowerCase();
+}
+
+window.renderSetupData = function() {
+    let stp = appData.scheduleSetup;
+    if (!stp) { stp = { week1Start: "", ppct: [], tkb: [], holidays: [], mathRatios: [] }; appData.scheduleSetup = stp; }
+    if (!stp.mathRatios) stp.mathRatios = [];
+    if(document.getElementById('setup-week1-date')) document.getElementById('setup-week1-date').value = stp.week1Start || '';
+    if(document.getElementById('setup-tkb-count')) document.getElementById('setup-tkb-count').innerText = (stp.tkb || []).length + " bản ghi";
+    if(document.getElementById('setup-ppct-count')) document.getElementById('setup-ppct-count').innerText = (stp.ppct || []).length + " bài dạy";
+    if(document.getElementById('setup-holidays-count')) document.getElementById('setup-holidays-count').innerText = (stp.holidays || []).length + " sự kiện";
+    if (document.getElementById('setup-math-ratio-count')) {
+        document.getElementById('setup-math-ratio-count').innerText = stp.mathRatios.length + " cấu hình";
+    }
+
+    const tbodyTKB = document.getElementById('tkb-tbody'); 
+    if(tbodyTKB) {
+        tbodyTKB.innerHTML = '';
+        (stp.tkb || []).forEach((t, i) => { tbodyTKB.innerHTML += `<tr><td>${t.dayOfWeek}</td><td>${t.period}</td><td>${t.className}</td><td>${t.subject}</td><td><button class="btn-outline-action text-red" style="width:25px;height:25px;" onclick="delSetupData('tkb', ${i})"><i class="fas fa-times"></i></button></td></tr>`; });
+    }
+    
+    const tbodyPPCT = document.getElementById('ppct-tbody'); 
+    if(tbodyPPCT) {
+        tbodyPPCT.innerHTML = '';
+        (stp.ppct || []).forEach((p, i) => { 
+            let br = p.branch ? `<span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:6px; font-weight:bold;">${p.branch}</span>` : '-';
+            tbodyPPCT.innerHTML += `<tr><td>${p.className}</td><td>${p.subject}</td><td>${br}</td><td>${p.ppct}</td><td>${p.content.substring(0,20)}...</td><td><button class="btn-outline-action text-red" style="width:25px;height:25px;" onclick="delSetupData('ppct', ${i})"><i class="fas fa-times"></i></button></td></tr>`; 
+        });
+    }
+
+    const tbodyHol = document.getElementById('hol-tbody'); 
+    if(tbodyHol) {
+        tbodyHol.innerHTML = '';
+        (stp.holidays || []).forEach((h, i) => { tbodyHol.innerHTML += `<tr><td>${h.start}</td><td>${h.end}</td><td>${h.name}</td><td><button class="btn-outline-action text-red" style="width:25px;height:25px;" onclick="delSetupData('holidays', ${i})"><i class="fas fa-times"></i></button></td></tr>`; });
+    }
+
+    const tbodyMath = document.getElementById('math-ratio-tbody');
+    if (tbodyMath) {
+        tbodyMath.innerHTML = '';
+        stp.mathRatios.forEach((m, i) => {
+            tbodyMath.innerHTML += `<tr><td><b>Khối ${m.grade}</b></td><td>Tuần ${m.fromWeek} - ${m.toWeek}</td><td><b>${m.dai} Đại - ${m.hinh} Hình</b></td><td><button class="btn-outline-action text-red" style="width:25px;height:25px;" onclick="delSetupData('mathRatios', ${i})"><i class="fas fa-times"></i></button></td></tr>`;
+        });
+    }
+};
+
+window.delSetupData = function(type, index) { 
+    appData.scheduleSetup[type].splice(index, 1); 
+    window.saveData(); 
+    window.renderSetupData(); 
+};
+
+window.clearAllSetupData = function(type) {
+    let typeName = (type === 'tkb') ? 'Thời khóa biểu' : ((type === 'ppct') ? 'Phân phối chương trình' : ((type === 'holidays') ? 'Lịch nghỉ lễ' : 'Cấu hình tỉ lệ'));
+    let currentCount = (appData.scheduleSetup[type] || []).length;
+    if (currentCount === 0) {
+        return window.showToast(`Danh sách ${typeName} đang trống!`, "error");
+    }
+    if (confirm(`⚠️ Bạn có chắc chắn muốn XÓA TẤT CẢ ${currentCount} dòng dữ liệu của ${typeName} không? (Thao tác này không thể hoàn tác)`)) {
+        appData.scheduleSetup[type] = [];
+        window.saveData();
+        window.renderSetupData();
+        window.showToast(`✅ Đã xóa toàn bộ ${typeName}!`, "success");
+    }
+};
+
+window.addTKB = function() {
+    let d = document.getElementById('add-tkb-day').value, p = document.getElementById('add-tkb-period').value, c = document.getElementById('add-tkb-class').value, s = document.getElementById('add-tkb-subject').value;
+    if(!d || !p || !c || !s) return window.showToast("Nhập đủ thông tin!", "error");
+    appData.scheduleSetup.tkb.push({ dayOfWeek: parseInt(d), period: parseInt(p), className: c.trim(), subject: s.trim() });
+    window.saveData(); window.renderSetupData(); window.showToast("Đã thêm TKB!");
+};
+
+window.addPPCT = function() {
+    let c = document.getElementById('add-ppct-class').value, s = document.getElementById('add-ppct-subject').value, p = document.getElementById('add-ppct-period').value, n = document.getElementById('add-ppct-content').value;
+    let br = document.getElementById('add-ppct-branch') ? document.getElementById('add-ppct-branch').value.trim() : '';
+    if(!c || !s || !p || !n) return window.showToast("Nhập đủ thông tin!", "error");
+    
+    if(!br && s.toLowerCase().includes('toán')) {
+        let lowN = n.toLowerCase();
+        if(lowN.includes('hình') || lowN.includes('góc') || lowN.includes('tam giác') || lowN.includes('đo lường')) br = 'Hình';
+        else br = 'Đại';
+    }
+    
+    appData.scheduleSetup.ppct.push({ className: c.trim(), subject: s.trim(), branch: br, ppct: parseInt(p), content: n.trim() });
+    window.saveData(); window.renderSetupData(); window.showToast("Đã thêm PPCT!");
+};
+
+window.addMathRatio = function() {
+    let grade = document.getElementById('add-math-grade').value.trim();
+    let fw = parseInt(document.getElementById('add-math-from-week').value);
+    let tw = parseInt(document.getElementById('add-math-to-week').value);
+    let dai = parseInt(document.getElementById('add-math-dai').value);
+    let hinh = parseInt(document.getElementById('add-math-hinh').value);
+    
+    if(!grade || isNaN(fw) || isNaN(tw) || isNaN(dai) || isNaN(hinh)) {
+        return window.showToast("Vui lòng điền đủ thông tin cấu hình!", "error");
+    }
+    if(fw > tw || fw < 1 || tw > 35) {
+        return window.showToast("Khoảng tuần không hợp lệ (từ 1 đến 35)!", "error");
+    }
+    
+    grade = extractGrade(grade);
+    if (!appData.scheduleSetup.mathRatios) appData.scheduleSetup.mathRatios = [];
+    
+    appData.scheduleSetup.mathRatios.push({ grade: grade, fromWeek: fw, toWeek: tw, dai: dai, hinh: hinh });
+    appData.scheduleSetup.mathRatios.sort((a,b) => (a.grade === b.grade) ? (a.fromWeek - b.fromWeek) : a.grade.localeCompare(b.grade));
+    
+    window.saveData(); 
+    window.renderSetupData(); 
+    window.showToast(`Đã thêm cấu hình Khối ${grade} (Tuần ${fw}-${tw}: ${dai} Đại - ${hinh} Hình)!`);
+};
+
+window.addHoliday = function() {
+    let s = document.getElementById('add-hol-start').value, e = document.getElementById('add-hol-end').value, n = document.getElementById('add-hol-name').value;
+    if(!s || !e || !n) return window.showToast("Nhập đủ thông tin!", "error");
+    appData.scheduleSetup.holidays.push({ start: s, end: e, name: n.trim() });
+    window.saveData(); window.renderSetupData(); window.showToast("Đã thêm ngày nghỉ!");
+};
+
+let currentImportType = '';
+window.triggerImport = function(type) { currentImportType = type; document.getElementById('general-import-file').click(); };
+
+window.handleGeneralImport = function(event) {
+    const file = event.target.files[0]; if (!file) return; const ext = file.name.split('.').pop().toLowerCase();
+    
+    if (ext === 'docx') {
+        if (typeof mammoth === 'undefined') { window.showToast("Thư viện Word chưa được tải!", "error"); return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            mammoth.convertToHtml({arrayBuffer: ev.target.result}).then(function(result) {
+                let html = result.value; let parser = new DOMParser(); let doc = parser.parseFromString(html, 'text/html'); let tables = doc.querySelectorAll('table'); let count = 0;
+                let targetClass = document.getElementById('add-ppct-class').value || "Chung"; let targetSubject = document.getElementById('add-ppct-subject').value || "Chung";
+                
+                tables.forEach(table => {
+                    let rows = table.querySelectorAll('tr'); let tietIdx = -1, ndIdx = -1;
+                    rows.forEach((tr) => {
+                        let cells = Array.from(tr.querySelectorAll('th, td')).map(c => c.innerText.trim());
+                        if (tietIdx === -1) {
+                            cells.forEach((txt, i) => { let low = txt.toLowerCase(); if(low === 'tiết' || low === 'tiết ppct' || low === 'tiết học') tietIdx = i; else if(low.includes('nội dung') || low.includes('tên bài') || low.includes('bài dạy')) ndIdx = i; });
+                            if(tietIdx === -1 && cells.length >= 2) { if(cells[0].toLowerCase().includes('tiết')) { tietIdx = 0; ndIdx = 1; } else if(cells[1].toLowerCase().includes('tiết')) { tietIdx = 1; ndIdx = 2; } }
+                        } else {
+                            if (cells.length > Math.max(tietIdx, ndIdx) && ndIdx !== -1) {
+                                let tiet = parseInt(cells[tietIdx]); let nd = cells[ndIdx];
+                                if(!isNaN(tiet) && nd) { appData.scheduleSetup.ppct.push({ className: targetClass, subject: targetSubject, ppct: tiet, content: nd }); count++; }
+                            }
+                        }
+                    });
+                });
+                window.saveData(); window.renderSetupData(); window.showToast(`Đã import thành công ${count} tiết PPCT từ Word!`);
+            }).catch(e => { window.showToast("Lỗi đọc file Word!", "error"); });
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const data = new Uint8Array(ev.target.result); const workbook = XLSX.read(data, { type: 'array' }); let rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]); let count = 0;
+                let targetClass = document.getElementById('add-ppct-class').value || "Chung"; let targetSubject = document.getElementById('add-ppct-subject').value || "Chung";
+
+                rows.forEach(r => {
+                    if(currentImportType === 'tkb' && (r['Thứ'] || r['Thu']) && (r['Tiết'] || r['Tiet']) && r['Lớp']) {
+                        appData.scheduleSetup.tkb.push({ dayOfWeek: parseInt(r['Thứ']||r['Thu']), period: parseInt(r['Tiết']||r['Tiet']), className: String(r['Lớp']||r['Lop']), subject: String(r['Môn']||r['Mon']) }); count++;
+                    }
+                    else if(currentImportType === 'ppct' && (r['Tiết'] || r['Tiet'])) {
+                        let p = parseInt(r['Tiết'] || r['Tiet']); 
+                        let n = String(r['Nội dung'] || r['Noi dung'] || r['Tên bài'] || r['Ten bai'] || r['Chủ đề'] || r['Tên bài học / Chuyên đề'] || '');
+                        let subj = String(r['Môn'] || r['Mon'] || targetSubject);
+                        let br = String(r['Phân môn'] || r['Phan mon'] || r['Nhánh'] || r['Phân nhánh'] || '').trim();
+                        
+                        if(!br && subj.toLowerCase().includes('toán')) {
+                            let lowN = n.toLowerCase();
+                            if(lowN.includes('hình') || lowN.includes('góc') || lowN.includes('tam giác') || lowN.includes('đo lường') || lowN.includes('mặt phẳng')) br = 'Hình';
+                            else br = 'Đại';
+                        }
+                        
+                        if(!isNaN(p) && n) { 
+                            appData.scheduleSetup.ppct.push({ 
+                                className: String(r['Lớp'] || r['Lop'] || r['Khối'] || r['Khoi'] || targetClass), 
+                                subject: subj, 
+                                branch: br,
+                                ppct: p, 
+                                content: n 
+                            }); 
+                            count++; 
+                        }
+                    }
+                    else if(currentImportType === 'holidays' && r['Từ ngày'] && r['Đến ngày'] && r['Sự kiện']) {
+                        let sd = new Date(r['Từ ngày']); let ed = new Date(r['Đến ngày']);
+                        if(!isNaN(sd)) { appData.scheduleSetup.holidays.push({ start: sd.toISOString().split('T')[0], end: ed.toISOString().split('T')[0], name: r['Sự kiện'] }); count++; }
+                    }
+                });
+                window.saveData(); window.renderSetupData(); window.showToast(`Đã import thành công ${count} dòng!`); 
+            } catch (error) { window.showToast("Lỗi định dạng file Excel!", "error"); }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    event.target.value = "";
+};
+
+window.checkIsHoliday = function(dateStr) {
+    let d = new Date(dateStr);
+    for(let h of (appData.scheduleSetup.holidays || [])) { if(d >= new Date(h.start) && d <= new Date(h.end)) return h; } return null;
+};
+
+function getMathBranchForPeriod(grade, week, mathIndexInWeek) {
+    let ratios = appData.scheduleSetup.mathRatios || [];
+    let config = ratios.find(r => r.grade === grade && week >= r.fromWeek && week <= r.toWeek);
+    if (!config) {
+        config = ratios.find(r => week >= r.fromWeek && week <= r.toWeek);
+    }
+    let numDai = config ? config.dai : 3;
+    return (mathIndexInWeek < numDai) ? 'Đại' : 'Hình';
+}
+
+window.generateAutoSchedule = function() {
+    let startDate = document.getElementById('setup-week1-date').value;
+    if(!startDate) return window.showToast("Vui lòng thiết lập Ngày bắt đầu Tuần 1!", "error");
+    if((appData.scheduleRecords || []).length > 0) { 
+        if(!confirm("CẢNH BÁO: Thao tác này sẽ TẠO LẠI TOÀN BỘ SỔ BÁO GIẢNG và ghi đè các tiết chưa hoàn thành. Các tiết Đã Dạy sẽ được bảo lưu. Bạn chắc chắn chứ?")) return; 
+    }
+
+    appData.scheduleSetup.week1Start = startDate; 
+    let records = []; 
+
+    let ppctMaster = {}; 
+    (appData.scheduleSetup.ppct || []).slice().sort((a,b) => a.ppct - b.ppct).forEach(p => { 
+        let grade = extractGrade(p.className);
+        let subj = p.subject.trim().toLowerCase();
+        let branch = (p.branch || '').trim();
+        
+        let key = branch ? `${subj}-${grade}-${branch}` : `${subj}-${grade}`;
+        if(!ppctMaster[key]) ppctMaster[key] = []; 
+        ppctMaster[key].push({...p}); 
+    });
+
+    let classQueues = {};
+    let classes = [...new Set((appData.scheduleSetup.tkb || []).map(t => t.className.trim()))];
+    let subjects = [...new Set((appData.scheduleSetup.tkb || []).map(t => t.subject.trim()))];
+
+    classes.forEach(cName => {
+        let grade = extractGrade(cName);
+        subjects.forEach(sName => {
+            let sLower = sName.toLowerCase();
+            let cLower = cName.toLowerCase();
+            if (sLower.includes('toán')) {
+                let kDai = `${sLower}-${cLower}-Đại`;
+                let kHinh = `${sLower}-${cLower}-Hình`;
+                let mDai = `${sLower}-${grade}-Đại`;
+                let mHinh = `${sLower}-${grade}-Hình`;
+
+                classQueues[kDai] = ppctMaster[mDai] ? JSON.parse(JSON.stringify(ppctMaster[mDai])) : [];
+                classQueues[kHinh] = ppctMaster[mHinh] ? JSON.parse(JSON.stringify(ppctMaster[mHinh])) : [];
+            } else {
+                let kGen = `${sLower}-${cLower}`;
+                let mGen = `${sLower}-${grade}`;
+                classQueues[kGen] = ppctMaster[mGen] ? JSON.parse(JSON.stringify(ppctMaster[mGen])) : [];
+            }
+        });
+    });
+
+    let currentDate = new Date(startDate);
+    for(let w = 1; w <= 35; w++) {
+        let mathCountInWeek = {};
+
+        for(let d = 2; d <= 7; d++) {
+            let dateStr = currentDate.toISOString().split('T')[0]; 
+            let holiday = window.checkIsHoliday(dateStr);
+            let dayTKB = (appData.scheduleSetup.tkb || []).filter(t => t.dayOfWeek == d); 
+            dayTKB.sort((a,b) => a.period - b.period);
+
+            dayTKB.forEach(tItem => {
+                let sLower = tItem.subject.trim().toLowerCase();
+                let cLower = tItem.className.trim().toLowerCase();
+                let grade = extractGrade(tItem.className);
+                let isMath = sLower.includes('toán');
+                let targetBranch = '';
+
+                if (isMath) {
+                    if (mathCountInWeek[cLower] === undefined) mathCountInWeek[cLower] = 0;
+                    targetBranch = getMathBranchForPeriod(grade, w, mathCountInWeek[cLower]);
+                }
+
+                let qKey = (isMath && targetBranch) ? `${sLower}-${cLower}-${targetBranch}` : `${sLower}-${cLower}`;
+                let oldR = (appData.scheduleRecords || []).find(x => x.date === dateStr && x.period === tItem.period && x.className === tItem.className);
+                
+                if(oldR && (oldR.status === 'completed' || oldR.note)) {
+                    records.push(oldR);
+                    if(oldR.status === 'completed' && classQueues[qKey] && classQueues[qKey].length > 0 && classQueues[qKey][0].ppct == oldR.ppct) { 
+                        classQueues[qKey].shift(); 
+                    }
+                    if (isMath) mathCountInWeek[cLower]++;
+                    return; 
+                }
+                
+                if (holiday) { 
+                    records.push({ 
+                        id: Date.now() + Math.random(), 
+                        week: w, date: dateStr, dayOfWeek: d, 
+                        period: tItem.period, className: tItem.className, subject: tItem.subject, 
+                        branch: targetBranch, ppct: "-", content: "NGHỈ LỄ - " + holiday.name, status: "off" 
+                    }); 
+                } else {
+                    if (classQueues[qKey] && classQueues[qKey].length > 0) { 
+                        let lesson = classQueues[qKey].shift(); 
+                        records.push({ 
+                            id: Date.now() + Math.random(), 
+                            week: w, date: dateStr, dayOfWeek: d, 
+                            period: tItem.period, className: tItem.className, subject: tItem.subject, 
+                            branch: targetBranch,
+                            ppct: lesson.ppct, 
+                            content: (targetBranch ? `[${targetBranch}] ` : '') + lesson.content, 
+                            status: "scheduled" 
+                        }); 
+                    } else { 
+                        records.push({ 
+                            id: Date.now() + Math.random(), 
+                            week: w, date: dateStr, dayOfWeek: d, 
+                            period: tItem.period, className: tItem.className, subject: tItem.subject, 
+                            branch: targetBranch,
+                            ppct: "-", content: "Ôn tập / Tự chọn (Hết PPCT)", status: "scheduled" 
+                        }); 
+                    }
+                    if (isMath) mathCountInWeek[cLower]++;
+                }
+            });
+            currentDate.setDate(currentDate.getDate() + 1); 
+        }
+        currentDate.setDate(currentDate.getDate() + 1); 
+    }
+    appData.scheduleRecords = records; 
+    window.saveData(); 
+    window.closeModal('modal-setup-lesson-log'); 
+    window.initLessonLogView(); 
+    window.showToast("🎉 Đã tự động sinh Sổ Báo Giảng chuẩn phân môn Đại & Hình!");
+};
+
+window.initLessonLogView = function() {
+    const sel = document.getElementById('ll-week-select'); 
+    if(!sel) return;
+    sel.innerHTML = '';
+    let maxWeek = 1;
+    (appData.scheduleRecords || []).forEach(r => { if(r.week > maxWeek) maxWeek = r.week; });
+    for(let i=1; i<=maxWeek; i++) { sel.innerHTML += `<option value="${i}">Sổ báo giảng - Tuần ${i}</option>`; }
+    let today = getTodayStr(); 
+    let todayRecord = (appData.scheduleRecords || []).find(r => r.date === today);
+    if(todayRecord) sel.value = todayRecord.week;
+    window.renderSchedule();
+};
+
+window.renderSchedule = function() {
+    const sel = document.getElementById('ll-week-select');
+    if (!sel) return;
+    const w = parseInt(sel.value) || 1;
+    const list = document.getElementById('ll-schedule-list'); 
+    if(!list) return;
+    list.innerHTML = '';
+    let records = (appData.scheduleRecords || []).filter(r => r.week == w);
+    
+    let total = records.filter(r => r.status !== 'off').length;
+    let completed = records.filter(r => r.status === 'completed').length;
+    let offCount = records.filter(r => r.status === 'off').length;
+    const statsContainer = document.getElementById('ll-stats-container');
+    if(statsContainer) {
+        statsContainer.innerHTML = `
+            <span class="text-blue">Tổng: ${total} tiết</span>
+            <span class="text-green">Đã xong: ${completed}</span>
+            <span class="text-orange">Còn: ${total - completed}</span>
+            ${offCount > 0 ? `<span class="text-red">Nghỉ: ${offCount}</span>` : ''}
+        `;
+    }
+
+    if(records.length === 0) { list.innerHTML = '<div style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:0.9rem;">Chưa có dữ liệu tuần này. Vui lòng bấm Cấu hình (bánh răng) và Tự động tạo sổ!</div>'; return; }
+
+    let byDate = {};
+    records.forEach(r => { if(!byDate[r.date]) byDate[r.date] = []; byDate[r.date].push(r); });
+    let daysOfWeek = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+
+    Object.keys(byDate).sort().forEach(dateStr => {
+        let dObj = new Date(dateStr); let dayName = daysOfWeek[dObj.getDay()];
+        let dateHeader = `<div style="background:var(--primary); color:white; padding:8px 15px; border-radius:10px; font-weight:700; font-size:0.9rem; margin-top:10px; box-shadow: var(--shadow-sm);">📅 ${dayName} - ${dObj.toLocaleDateString('vi-VN')}</div>`;
+        list.innerHTML += dateHeader;
+
+        byDate[dateStr].sort((a,b) => a.period - b.period).forEach(r => {
+            let isOff = r.status === 'off'; let isCompleted = r.status === 'completed';
+            let cardClass = isOff ? 'status-off' : (isCompleted ? 'status-completed' : 'status-scheduled');
+            let statusBtn = isOff ? '' : (isCompleted ? `<button class="btn-outline-action text-green" onclick="toggleScheduleStatus(${r.id})"><i class="fas fa-check-circle"></i></button>` : `<button class="btn-outline-action text-muted" onclick="toggleScheduleStatus(${r.id})"><i class="far fa-circle"></i></button>`);
+            let editBtn = isOff ? '' : `<button class="btn-outline-action text-orange" onclick="openAdjustSchedule(${r.id})"><i class="fas fa-exchange-alt"></i></button>`;
+
+            list.innerHTML += `
+                <div class="sched-card ${cardClass}">
+                    <div class="sched-top"><span>Tiết ${r.period} | ${r.className}</span> <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 8px;">PPCT: ${r.ppct}</span></div>
+                    <div class="sched-mid">
+                        <div class="sched-info"><h4>${r.subject}</h4><p>${r.content}</p></div>
+                    </div>
+                    ${r.note ? `<div class="sched-note"><i class="fas fa-info-circle"></i> ${r.note}</div>` : ''}
+                    <div class="sched-bot">
+                        ${statusBtn}
+                        <div style="display:flex; gap:8px;">${editBtn}</div>
+                    </div>
+                </div>`;
+        });
+    });
+};
+
+window.toggleScheduleStatus = function(id) {
+    let r = (appData.scheduleRecords || []).find(x => x.id == id);
+    if(r) { r.status = (r.status === 'completed') ? 'scheduled' : 'completed'; window.saveData(); window.renderSchedule(); }
+};
+
+window.openAdjustSchedule = function(id) {
+    let r = (appData.scheduleRecords || []).find(x => x.id == id); if(!r) return;
+    document.getElementById('adj-sched-id').value = r.id; 
+    document.getElementById('adj-sched-info').innerHTML = `Đang chỉnh sửa: <b>${r.subject} ${r.className} (Tiết ${r.period})</b> - PPCT: ${r.ppct}`; 
+    document.getElementById('adj-sched-date').value = r.date; 
+    document.getElementById('adj-sched-period').value = r.period; 
+    document.getElementById('adj-sched-note').value = r.note || '';
+    window.openModal('modal-adjust-schedule');
+};
+
+window.saveAdjustedSchedule = function() {
+    let id = document.getElementById('adj-sched-id').value; 
+    let r = (appData.scheduleRecords || []).find(x => x.id == id);
+    if(r) {
+        let nDate = document.getElementById('adj-sched-date').value; 
+        let nPeriod = document.getElementById('adj-sched-period').value;
+        if(!nDate || !nPeriod) return window.showToast("Nhập đủ ngày và tiết!", "error");
+        let dObj = new Date(nDate); let dow = dObj.getDay() === 0 ? 8 : dObj.getDay() + 1; 
+        if(nDate !== r.date) { r.note = `${document.getElementById('adj-sched-note').value || 'Dạy bù'} (Dời từ ${new Date(r.date).toLocaleDateString('vi-VN')})`; r.date = nDate; r.dayOfWeek = dow; }
+        else { r.note = document.getElementById('adj-sched-note').value; }
+        r.period = parseInt(nPeriod);
+        window.saveData(); window.closeModal('modal-adjust-schedule'); window.renderSchedule(); window.showToast("Đã cập nhật lịch dạy!");
+    }
+};
+
+window.exportScheduleExcel = function() {
+    const sel = document.getElementById('ll-week-select');
+    if(!sel) return;
+    const w = parseInt(sel.value) || 1;
+    let records = (appData.scheduleRecords || []).filter(r => r.week == w);
+    if(records.length === 0) return window.showToast("Tuần này trống!", "error");
+    let ws_data = [["Tuần", "Ngày", "Thứ", "Tiết", "Lớp", "Môn", "PPCT", "Nội dung", "Trạng thái", "Ghi chú"]];
+    records.sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(r => {
+        let st = r.status==='off'?'Nghỉ':(r.status==='completed'?'Đã xong':'Chưa dạy');
+        ws_data.push([r.week, new Date(r.date).toLocaleDateString('vi-VN'), r.dayOfWeek, r.period, r.className, r.subject, r.ppct, r.content, st, r.note||""]);
+    });
+    var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws_data), "SoBaoGiang");
+    XLSX.writeFile(wb, `So_Bao_Giang_Tuan_${w}.xlsx`); window.showToast("Đã xuất Excel Sổ báo giảng!");
+};
+
+window.downloadTemplateTKB = function() {
+    const data = [
+        ["Thứ", "Tiết", "Lớp", "Môn"],
+        [2, 1, "6A", "Toán"],
+        [2, 2, "6A", "Toán"],
+        ["(Chú ý: Xóa 2 dòng mẫu này đi và nhập dữ liệu thật của bạn vào. KHÔNG sửa tên cột ở hàng 1)", "", "", ""]
+    ];
+    var wb = XLSX.utils.book_new(); 
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch: 10}, {wch: 10}, {wch: 15}, {wch: 20}];
+    XLSX.utils.book_append_sheet(wb, ws, "TKB_Mau");
+    XLSX.writeFile(wb, "Mau_Thoi_Khoa_Bieu.xlsx");
+    window.showToast("Đã tải xuống File Mẫu TKB!", "success");
+};
+
+window.downloadTemplatePPCT = function() {
+    const data = [
+        ["Khối", "Môn", "Phân môn", "Tiết", "Tên bài học / Chuyên đề", "Số tiết", "Thiết bị dạy học", "Địa điểm"],
+        ["6", "Toán", "Đại", 1, "Bài 1: Tập hợp", 1, "Slide bài giảng, Máy chiếu", "Lớp học"],
+        ["6", "Toán", "Đại", 2, "Bài 2: Tập hợp các số tự nhiên", 1, "Trò chơi Quizizz", "Lớp học"],
+        ["6", "Toán", "Hình", 1, "Bài 1: Tam giác đều, hình vuông, lục giác đều", 1, "Mô hình hình học", "Lớp học"],
+        ["(Chú ý: Cột Phân môn dành cho môn Toán điền Đại hoặc Hình. Xóa các dòng mẫu này đi và dán PPCT của bạn vào. KHÔNG sửa tên cột ở hàng 1)", "", "", "", "", "", "", ""]
+    ];
+    var wb = XLSX.utils.book_new(); 
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch: 10}, {wch: 12}, {wch: 12}, {wch: 10}, {wch: 40}, {wch: 10}, {wch: 25}, {wch: 15}];
+    XLSX.utils.book_append_sheet(wb, ws, "PPCT_Mau");
+    XLSX.writeFile(wb, "Mau_Phan_Phoi_CT.xlsx");
+    window.showToast("Đã tải xuống File Mẫu PPCT chuẩn phân môn!", "success");
+};
+
+
+// ==================== CẢNH BÁO CẬP NHẬT PHIÊN BẢN MỚI ====================
+const CURRENT_APP_VERSION = 'v4.2_gvbm_lesson_log';
+
+window.checkAppUpdateAnnouncement = function() {
+    let lastSeenVersion = localStorage.getItem('gvbm_seen_version');
+    if (lastSeenVersion !== CURRENT_APP_VERSION) {
+        setTimeout(() => {
+            if (document.getElementById('modal-update-announcement')) {
+                window.openModal('modal-update-announcement');
+            }
+        }, 1200);
+    }
+};
+
+window.dismissUpdateAnnouncement = function() {
+    localStorage.setItem('gvbm_seen_version', CURRENT_APP_VERSION);
+    window.closeModal('modal-update-announcement');
 };

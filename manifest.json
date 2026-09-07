@@ -1,7 +1,7 @@
 {
-  "name": "Trợ Lý GVCN Pro",
-  "short_name": "App GVCN",
-  "description": "Trợ lý đắc lực quản lý lớp học dành cho Giáo viên chủ nhiệm",
+  "name": "Trợ Lý GVBM Pro",
+  "short_name": "App GVBM",
+  "description": "Trợ lý đắc lực quản lý lớp học và sổ điểm dành cho Giáo viên bộ môn",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f8fafc",
