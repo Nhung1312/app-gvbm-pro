@@ -184,8 +184,15 @@ window.switchView = function(viewId, navEl = null) {
     window.refreshAllViews();
 };
 
-window.openModal = function(id) { document.getElementById(id).style.display = 'flex'; };
-window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; };
+window.openModal = function(id) { 
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'flex'; 
+};
+
+window.closeModal = function(id) { 
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none'; 
+};
 
 // ================= TỰ ĐỘNG TÍNH TOÁN & NHẬN XÉT =================
 window.calculateDTB = function(txArr, gk, ck) {
